@@ -1,0 +1,44 @@
+Header {
+    background: rgb(123, 193, 250);
+    color: rgb(0, 0, 0);
+}
+
+Footer {
+    background: rgb(123, 193, 250);
+}
+
+#app-container {
+    width: 100%;
+    height: 100%;
+}
+
+.sidebar {
+    width: 20%;
+    min-width: 20;
+    height: 100%;
+    border-right: solid $primary;
+}
+
+#main-content {
+    width: 80%;
+    height: 100%;
+}
+
+.search-container {
+    padding: 1 2;
+    background: $surface;
+    height: 3;
+}
+
+#search-input {
+    width: 70%;
+    margin-right: 1;
+}
+
+#search-options {
+    width: 30%;
+}
+
+#content-area {
+    padding: 1;
+}
