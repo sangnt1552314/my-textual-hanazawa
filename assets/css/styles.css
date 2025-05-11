@@ -20,27 +20,20 @@ Footer {
     width: 100%;
     height: 100%;
     color: #f8f8f8;
-    border:solid rgb(240, 77, 12)
+    border:solid rgb(8, 168, 241)
 }
 
 #app-grid > #main-right {
     width: 100%;
     height: 100%;
-    border: solid rgb(240, 77, 12);
+    border: solid rgb(8, 168, 241);
 }
 
 #left-pane-title {
-    background: #2c3e50;
+    background: #e6671e;
     color: #ecf0f1;
     text-align: center;
     padding: 1 2;
-}
-
-.nav-header {
-    padding: 1 2;
-    text-align: center;
-    background: #34495e;
-    color: #ecf0f1;
 }
 
 .nav-button {
@@ -48,9 +41,16 @@ Footer {
     margin: 1 0 0 0;
     background: #3498db;
     color: #ffffff;
+    border:rgb(240, 77, 12)
 }
 
 .nav-button:hover {
-    background: #2980b9;
+    background: #3de946;
     color: #ffffff;
+}
+
+#main-right-title {
+    color: #12851b;
+    text-align: center;
+    padding: 1 2;
 }

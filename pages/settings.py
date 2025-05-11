@@ -7,4 +7,4 @@ class SettingsPage(BaseTemplate):
         super().__init__(subtitle="Settings Page")
 
     def compose_main_content(self) -> ComposeResult:
-        yield Static("Settings Configuration Panel", id="main-right-text")
+        yield Static("TBU", id="main-right-text")

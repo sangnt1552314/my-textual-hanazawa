@@ -2,3 +2,5 @@ textual
 textual-dev
 python-dotenv
 pyfiglet
+requests
+rich-pixels
