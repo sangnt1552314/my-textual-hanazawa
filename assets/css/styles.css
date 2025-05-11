@@ -1,0 +1,55 @@
+Header {
+    background: rgb(25, 77, 248);
+    color: rgb(0, 0, 0);
+}
+
+Footer {
+    background: rgb(25, 77, 248);
+}
+
+#app-grid {
+    layout: grid;
+    grid-size: 2;
+    grid-columns: 20% 80%;
+    grid-rows: 1fr;
+    height: 100%;
+}
+
+#app-grid > #left-pane {
+    width: 100%;
+    height: 100%;
+    color: #f8f8f8;
+    border:solid rgb(240, 77, 12)
+}
+
+#app-grid > #main-right {
+    width: 100%;
+    height: 100%;
+    border: solid rgb(240, 77, 12);
+}
+
+#left-pane-title {
+    background: #2c3e50;
+    color: #ecf0f1;
+    text-align: center;
+    padding: 1 2;
+}
+
+.nav-header {
+    padding: 1 2;
+    text-align: center;
+    background: #34495e;
+    color: #ecf0f1;
+}
+
+.nav-button {
+    width: 100%;
+    margin: 1 0 0 0;
+    background: #3498db;
+    color: #ffffff;
+}
+
+.nav-button:hover {
+    background: #2980b9;
+    color: #ffffff;
+}
