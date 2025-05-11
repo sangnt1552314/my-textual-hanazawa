@@ -1,3 +1,4 @@
 textual
 textual-dev
 python-dotenv
+pyfiglet
