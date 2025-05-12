@@ -4,3 +4,4 @@ python-dotenv
 pyfiglet
 requests
 rich-pixels
+httpx
