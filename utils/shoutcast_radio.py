@@ -1,3 +1,4 @@
+import httpx
 from dotenv import load_dotenv
 import os
 import requests 
@@ -8,42 +9,41 @@ load_dotenv()
 
 class ShoutcastRadio:
     def __init__(self, api_key = ''):
-        self.api_key = os.getenv("SHOUTCAST_API_KEY") if api_key == '' else api_key
+        self.api_key = api_key or os.getenv("SHOUTCAST_API_KEY")
+        if not self.api_key:
+            raise ValueError("Shoutcast API key is required")
 
-    def get_now_playing_stations(self, **kwargs):
-        """
-        Get the list of now playing stations.
-        """
-        ct = kwargs.get("ct", "")
-        limit = kwargs.get("limit", 25)
-        mt = kwargs.get("mt", "audio/mpeg")
-        format = kwargs.get("format", "json")
 
-        is_convert_to_textual = kwargs.get("is_convert_to_textual", True)
-        
+    async def get_now_playing_stations(self, **kwargs):
+        """
+        Get the list of now playing stations. Supports both async and sync operations.
+        """
         params = {
-            "ct": ct,
+            "ct": kwargs.get("ct", ""),
             "k": self.api_key,
-            "limit": limit,
-            "mt": mt,
-            "f": format,
+            "limit": kwargs.get("limit", 25),
+            "mt": kwargs.get("mt", "audio/mpeg"),
+            "f": kwargs.get("format", "json"),
         }
-
-        response = requests.get(f"{SHOUTCAST_BASE_URL}/station/nowplaying", params=params)
-
+    
+        # Handle both async and sync requests
+        if kwargs.get("async_request", False):
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"{SHOUTCAST_BASE_URL}/station/nowplaying", params=params)
+        else:
+            response = requests.get(f"{SHOUTCAST_BASE_URL}/station/nowplaying", params=params)
+    
         if response.status_code != 200:
             raise Exception(f"Error fetching now playing stations: {response.status_code} - {response.text}")
         
         data = response.json()
-
         tunin = data.get("response", {}).get("data", {}).get("stationlist", {}).get("tunein", {})
-
         stations = data.get("response", {}).get("data", {}).get("stationlist", {}).get("station", {})
     
         if not stations:
             raise Exception("No stations found")
         
-        station_options = [
+        return [
             {
                 "id": str(station["id"]),
                 "name": f"""{station["name"]} - {station['genre']}""",
@@ -53,30 +53,6 @@ class ShoutcastRadio:
             }
             for station in stations
         ]
-
-        if is_convert_to_textual:
-            textual_station_options = []
-            textual_station_options.append(
-                (
-                    "ID", 
-                    "Name", 
-                    "Genre", 
-                    "Stream URL",
-                )
-            )
-            for station in station_options:
-                textual_station_options.append(
-                    (
-                        station["id"], 
-                        station["name"], 
-                        station["genre"], 
-                        station["stream_url"],
-                    )
-                )
-
-            return textual_station_options
-
-        return station_options
 
     def _get_station_stream_url(self, station_id="", tunin = {}):
         """
