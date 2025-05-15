@@ -9,7 +9,7 @@ from textual.message import Message
 from textual.events import Click
 from templates import BaseTemplate
 import pyfiglet 
-from utils.shoutcast_radio import ShoutcastRadio
+from utils.shoutcast_radio import ShoutcastRadio, ShoutcastRadioPlayer
 
 logging.basicConfig(
     filename='example.log',
@@ -72,6 +72,7 @@ class HomePage(BaseTemplate):
         super().__init__(subtitle="Home Page")
         self.stations = []
         self.radio = ShoutcastRadio()
+        self.radio_player = ShoutcastRadioPlayer()
 
     def compose_main_content(self) -> ComposeResult:
         with Container(id="main-right", classes="main-right"):
@@ -126,3 +127,8 @@ class HomePage(BaseTemplate):
             isinstance(self.screen.focused, SearchInput)
         ):
             self.screen.focused.blur()
+
+    def on_radio_data_table_selected(self, message) -> None:
+        """Handle station selection from the home page."""
+        stream_url = message.station['stream_url']
+        self.radio_player.play_stream_url(stream_url)
