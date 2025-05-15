@@ -4,22 +4,19 @@ from textual.logging import TextualHandler
 from textual import work
 from textual.app import ComposeResult
 from textual.containers import Container
-from textual.widgets import (
-    Static,
-    LoadingIndicator,
-    DataTable,
-    Input
-)
+from textual.widgets import Static, LoadingIndicator, DataTable, Input
 from textual.message import Message
 from textual.events import Click
 from templates import BaseTemplate
 import pyfiglet 
 from utils.shoutcast_radio import ShoutcastRadio
 
-# Configure logging to use TextualHandler
-logging.basicConfig(filename='example.log', level=logging.DEBUG, 
-                    format='%(asctime)s - %(levelname)s - %(message)s',
-                    filemode='a') # 'a' for append, 'w' to overwrite
+logging.basicConfig(
+    filename='example.log',
+    level=logging.DEBUG, 
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    filemode='a'
+)
 logger = logging.getLogger(__name__)
 
 class RadioDataTable(DataTable):
@@ -40,13 +37,9 @@ class RadioDataTable(DataTable):
             self.add_row(row["name"], row["genre"])
 
     def on_click(self, event: Click) -> None:
-        # Get the selected row index
         row_index = event.y
         if 0 <= row_index < len(self.stations):
-            # Get the station data for the selected row
-            selected_station = self.stations[row_index]
-            # Post the message with the selected station
-            self.post_message(self.Selected(selected_station))
+            self.post_message(self.Selected(self.stations[row_index]))
 
 class SearchInput(Input):
     CSS = """
@@ -78,75 +71,58 @@ class HomePage(BaseTemplate):
     def __init__(self) -> None:
         super().__init__(subtitle="Home Page")
         self.stations = []
+        self.radio = ShoutcastRadio()
 
     def compose_main_content(self) -> ComposeResult:
         with Container(id="main-right", classes="main-right"):
-            # Create a banner using pyfiglet
             banner = pyfiglet.figlet_format(os.getenv('APP_NAME', ''), font="slant", width=100)
             yield Static(banner, id="main-right-title", classes="main-right-title")
-
             yield Container(SearchInput(id="search-input"))
+            yield Container(
+                LoadingIndicator(id="main-right-body-loading"),
+                id="main-right-body",
+                classes="main-right-body"
+            )
 
-            # create table of music stations
-            with Container(id="main-right-body", classes="main-right-body"):
-                yield LoadingIndicator(id="main-right-body-loading", classes="main-right-body-loading")
-
-    @work(exclusive=True)  
-    async def on_mount(self) -> None:
-        await self.update_main_content()
-
-    @work(exclusive=True)
-    async def on_search_input_submitted(self, event: SearchInput.Submitted) -> None:
-        search_term = event.value
-
-        # Show loading indicator
-        loading = LoadingIndicator(id="main-right-body-loading", classes="main-right-body-loading")
-        await self.query_one("#main-right-body").mount(loading)
-
-        # Remove existing content if any
+    async def _update_stations_display(self, stations: list) -> None:
+        body = self.query_one("#main-right-body")
+        await self.query_one("#main-right-body-loading").remove()
+        
         try:
             await self.query_one("#main-right-body-content").remove()
         except:
             pass
 
-        # Fetch stations with search term
-        radio = ShoutcastRadio()
-        self.stations = await radio.get_now_playing_stations(ct=search_term, limit=10, async_request=True)
-
-        # Remove the loading indicator
-        await loading.remove()
-
-        if not self.stations:
-            message = Static("No stations found", id="main-right-body-content", classes="main-right-body-content")
-            await self.query_one("#main-right-body").mount(message)
+        if not stations:
+            content = Static("No stations found", id="main-right-body-content")
         else:
-            table = RadioDataTable(id="main-right-body-content", classes="main-right-body-content")
-            table.add_rows(self.stations)
-            await self.query_one("#main-right-body").mount(table)
+            content = RadioDataTable(id="main-right-body-content")
+            content.add_rows(stations)
+        
+        await body.mount(content)
+
+    @work(exclusive=True)
+    async def on_mount(self) -> None:
+        self.stations = await self.radio.get_now_playing_stations(limit=10, async_request=True)
+        await self._update_stations_display(self.stations)
+
+    @work(exclusive=True)
+    async def on_search_input_submitted(self, event: SearchInput.Submitted) -> None:
+        loading = LoadingIndicator(id="main-right-body-loading")
+        await self.query_one("#main-right-body").mount(loading)
+        
+        self.stations = await self.radio.get_now_playing_stations(
+            ct=event.value,
+            limit=10,
+            async_request=True
+        )
+        await self._update_stations_display(self.stations)
 
     def on_click(self, event: Click) -> None:
         search_input = self.query_one("#search-input")
-        if event.widget != search_input:
-            if self.screen.focused and isinstance(self.screen.focused, SearchInput):
-                self.screen.focused.blur()
-
-    async def update_main_content(self, ct="") -> None:
-        radio = ShoutcastRadio()
-        self.stations = await radio.get_now_playing_stations(ct=ct, limit=10, async_request=True)
-
-        if not self.stations:
-            # Remove the loading indicator
-            await self.query_one("#main-right-body-loading").remove()
-
-            message = Static("No stations found", id="main-right-body-content", classes="main-right-body-content")
-            await self.query_one("#main-right-body").mount(message)
-
-        if self.stations:
-            # Remove the loading indicator
-            await self.query_one("#main-right-body-loading").remove()
-
-            table = RadioDataTable(id="main-right-body-content", classes="main-right-body-content")
-            table.add_rows(self.stations)
-
-            # Mount the new content to the container
-            await self.query_one("#main-right-body").mount(table)
+        if (
+            event.widget != search_input and 
+            self.screen.focused and 
+            isinstance(self.screen.focused, SearchInput)
+        ):
+            self.screen.focused.blur()
