@@ -5,6 +5,7 @@ from pages import (
     SettingsPage,
     BasePage,
 )
+from utils import shoutcast_radio
 
 class HanazawaApp(App):
     BINDINGS = [
@@ -19,5 +20,14 @@ class HanazawaApp(App):
         "settings": SettingsPage
     }
 
+    def __init__(self) -> None:
+        super().__init__()
+        self.radio_player = shoutcast_radio.ShoutcastRadioPlayer()
+
     def on_mount(self) -> None:
         self.switch_mode("home")
+        
+    def on_radio_data_table_selected(self, message) -> None:
+        """Handle station selection from the home page."""
+        stream_url = message.station['stream_url']
+        self.radio_player.play_stream_url(stream_url)

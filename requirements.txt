@@ -5,3 +5,4 @@ pyfiglet
 requests
 rich-pixels
 httpx
+python-vlc

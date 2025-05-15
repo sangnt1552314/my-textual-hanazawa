@@ -2,10 +2,30 @@ import httpx
 from dotenv import load_dotenv
 import os
 import requests 
+import vlc
 from urllib.parse import quote
 from .constants import *
 
 load_dotenv()
+
+class ShoutcastRadioPlayer:
+    def __init__(self):
+        self.player = None
+        self.instance = None
+    
+    def play_stream_url(self, url: str) -> None:
+        """Play station in background."""
+        if self.player is not None:
+            self.player.stop()
+            self.player.release()
+        if self.instance is not None:
+            self.instance.release()
+
+        self.instance = vlc.Instance(['--no-video', '--quiet'])
+        self.player = self.instance.media_player_new()
+        media = self.instance.media_new(url)
+        self.player.set_media(media)
+        self.player.play()
 
 class ShoutcastRadio:
     def __init__(self, api_key = ''):
