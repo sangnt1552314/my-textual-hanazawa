@@ -61,7 +61,7 @@ class ShoutcastRadio:
         stations = data.get("response", {}).get("data", {}).get("stationlist", {}).get("station", {})
     
         if not stations:
-            raise Exception("No stations found")
+            return []
         
         return [
             {
