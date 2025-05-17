@@ -1,10 +1,10 @@
 
-from .home import HomePage
+from .radio import RadioPage
 from .settings import SettingsPage
 from .base import BasePage
 
 __all__ = [
-    'HomePage',
+    'RadioPage',
     'SettingsPage',
     'BasePage',
 ]
