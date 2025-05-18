@@ -1,0 +1,9 @@
+#radio-header {
+    background: rgb(25, 77, 248);
+    color: #ffffff;
+    text-align: left;
+}
+
+#radio-footer {
+    background: rgb(25, 77, 248);
+}

@@ -17,7 +17,7 @@ from utils import pages
 
 class BaseTemplate(Screen):
     """Base template for all pages"""
-    CSS_PATH = "../assets/css/styles.css"
+    CSS_PATH = "../assets/css/styles.tcss"
     
     def __init__(self, subtitle: str = "") -> None:
         super().__init__()
