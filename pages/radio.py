@@ -3,14 +3,26 @@ import logging
 import time
 from textual import work
 from textual.app import ComposeResult
-from textual.containers import Container
+from textual.containers import (
+    Container,
+    Vertical,
+    Horizontal,
+    VerticalGroup,
+    VerticalScroll
+)
 from textual.widgets import (
-    Static, 
-    LoadingIndicator, 
-    DataTable, 
+    Static,
+    LoadingIndicator,
+    DataTable,
     Input,
     Header,
     Footer,
+    ListView, 
+    ListItem, 
+    Label, 
+    TabbedContent, 
+    TabPane, 
+    Button
     )
 from textual.message import Message
 from textual.events import Click
@@ -42,9 +54,48 @@ class RadioPage(BaseTemplate):
             show_clock=True,
             id="radio-header"
         )
-        
-        # Main content grid
-        with Container(id="radio-app"):
-            pass
-        
+
+        yield Input(placeholder="Search...", id="search_input")
+
+        with Container(id="body_container"):
+            with Container(id="sidebar"):
+                with TabbedContent(id="section_tabs"):
+                    with TabPane("Genres", id="tab_genres"):
+                        yield ListView(
+                            ListItem(Label("Made For You")),
+                            ListItem(Label("Recently Played")),
+                            ListItem(Label("Liked Songs")),
+                            ListItem(Label("Albums")),
+                            ListItem(Label("Artists")),
+                            ListItem(Label("Podcasts")),
+                            id="genre_list"
+                        )
+                    with TabPane("Stations", id="tab_stations"):
+                        yield ListView(
+                            ListItem(Label("Jazz Classics")),
+                            ListItem(Label("Rock Hits")),
+                            ListItem(Label("Synthwave / Retro Electro")),
+                            ListItem(Label("City Pop Essentials")),
+                            ListItem(Label("Study Beats")),
+                            id="stations_list"
+                        )
+
+            with Container(id="main_content"):
+                welcome_text = pyfiglet.figlet_format(os.getenv('APP_NAME', 'Radio'), font="slant")
+                yield Label(welcome_text, classes="header")
+                yield ListView(
+                    ListItem(Label("Song 1 – Artist A")),
+                    ListItem(Label("Song 2 – Artist B")),
+                    ListItem(Label("Song 3 – Artist C")),
+                    id="playlist_tracks"
+                )
+
         yield Footer(id="radio-footer")
+
+    @work(exclusive=True, thread=True)
+    async def on_mount(self) -> None:
+        pass
+
+    def on_click(self, event: Click) -> None:
+        pass
+        # logger.debug(f"Clicked on {event.sender.id}")

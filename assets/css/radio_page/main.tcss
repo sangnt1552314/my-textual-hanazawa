@@ -1,9 +1,76 @@
 #radio-header {
-    background: rgb(25, 77, 248);
-    color: #ffffff;
+    background:#002635;    /* Soft navy blue */
+    color: #e8f1f5;        /* Light blue-white */
     text-align: left;
 }
 
 #radio-footer {
-    background: rgb(25, 77, 248);
+    background: #002635;   /* Matching header */
+}
+
+/* Global theme colors */
+Screen {
+    background: #002635;
+    color: #E6E6DC;         /* light off-white text */
+}
+
+/* Search bar styling */
+#search_input {
+    background: #002635;
+    color: #FFFFFF;
+    border: solid;
+    height: 3;
+    padding: 0 0 0 0;
+}
+
+/* Container layouts */
+#body_container {
+    layout: horizontal;
+    height: auto;
+    border: solid #00FFFF;
+    max-height: 100;
+}
+
+/* Sidebar panel */
+#sidebar {
+    width: 30%;
+    max-width: 30;
+    background: #002635;
+    border-right: solid #00FFFF;
+    # border-top: solid #00FFFF;
+    overflow: auto;
+}
+
+/* TabPane headers in sidebar */
+#section_tabs > .tab_button {
+    background: #002635;
+    color: #B7CFF9;        /* bright blue text for active/inactive */
+    content-align: center middle;
+    padding: 0 1 0 0;
+}
+
+/* ListViews in sidebar */
+#stations_list, #genre_list {
+    background: #002635;
+    border: solid #00384D; /* panel border */
+    # height: auto;
+    # margin: 1;
+}
+
+/* Main content panel */
+#main_content {
+    width: 70%;
+    # padding: 1;
+    background: #002635;
+    border-left: solid #00FFFF;
+    # border-top: solid #00FFFF;
+    overflow: auto;
+}
+
+/* Headers (labels) */
+.header {
+    color: #FFFFFF;
+    text-style: bold;
+    # padding-top: 1;
+    # padding-left: 1;
 }
