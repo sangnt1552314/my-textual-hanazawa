@@ -10,7 +10,7 @@
 
 /* Global theme colors */
 Screen {
-    background: #002635;
+    background:rgb(16, 44, 48);
     color: #E6E6DC;         /* light off-white text */
 }
 
@@ -18,7 +18,7 @@ Screen {
 #search_input {
     background: #002635;
     color: #FFFFFF;
-    border: solid;
+    border: solid #00FFFF;
     height: 3;
     padding: 0 0 0 0;
 }
@@ -73,4 +73,14 @@ Screen {
     text-style: bold;
     # padding-top: 1;
     # padding-left: 1;
+}
+
+/* ListView items (tracks) */
+#playlist_tracks {
+    background: #002635;
+    border: none;
+    margin: 1;
+}
+#playlist_tracks > ListItem {
+    padding: 0 1;
 }

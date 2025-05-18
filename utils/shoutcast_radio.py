@@ -1,10 +1,17 @@
-import httpx
-from dotenv import load_dotenv
 import os
-import requests 
-import vlc
+import asyncio
+import httpx
+import requests
+import xmltodict
+from dotenv import load_dotenv
 from urllib.parse import quote
 from .constants import *
+
+try:
+    import vlc
+    VLC_AVAILABLE = True
+except (ImportError, FileNotFoundError):
+    VLC_AVAILABLE = False
 
 load_dotenv()
 
@@ -12,9 +19,13 @@ class ShoutcastRadioPlayer:
     def __init__(self):
         self.player = None
         self.instance = None
+        self.is_available = VLC_AVAILABLE
 
     def play_stream_url(self, url: str) -> None:
         """Play station in background."""
+        if not self.is_available:
+            raise RuntimeError("VLC is not available. Cannot play audio.")
+        
         if self.player is not None:
             self.player.stop()
             self.player.release()
@@ -33,6 +44,33 @@ class ShoutcastRadio:
         if not self.api_key:
             raise ValueError("Shoutcast API key is required")
 
+    async def get_all_genres(self, **kwargs):
+        """
+        Get the list of all genres. Supports both async and sync operations.
+        """
+        params = {
+            "k": self.api_key,
+        }
+
+        if kwargs.get("async_request", False):
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"{SHOUTCAST_BASE_URL}/legacy/genrelist", params=params)
+        else:
+            response = requests.get(f"{SHOUTCAST_BASE_URL}/legacy/genrelist", params=params)
+
+        if response.status_code != 200:
+            raise Exception(f"Error fetching genres: {response.status_code} - {response.text}")
+        
+        xml_data = xmltodict.parse(response.content)
+        genre_list = xml_data.get("genrelist", {}).get("genre", {})
+        
+        if not genre_list:
+            return []
+        
+        return [{
+            "name": genre["@name"],
+            "count": genre["@count"],
+        } for genre in genre_list if isinstance(genre, dict)]
 
     async def get_now_playing_stations(self, **kwargs):
         """
@@ -108,13 +146,13 @@ class ShoutcastRadio:
 
         return stream_url
 
-if __name__ == "__main__":
-    # Example usage
+async def main():
     radio = ShoutcastRadio()
-    stations = radio.get_now_playing_stations(ct="uk", limit=10)
-    for station in stations:
-        print(f"Station ID: {station['id']}")
-        print(f"Station Name: {station['name']}")
-        print(f"Station Genre: {station['genre']}")
-        print(f"Stream URL: {station['stream_url']}")
+    genres = await radio.get_all_genres(async_request=True)
+    for genre in genres:
+        print(f"Genre Name: {genre['name']}")
         print()
+
+if __name__ == "__main__":
+    # Run example
+    asyncio.run(main())

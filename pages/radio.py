@@ -1,6 +1,7 @@
 import os
 import logging
 import time
+import pyfiglet
 from textual import work
 from textual.app import ComposeResult
 from textual.containers import (
@@ -17,24 +18,24 @@ from textual.widgets import (
     Input,
     Header,
     Footer,
-    ListView, 
-    ListItem, 
-    Label, 
-    TabbedContent, 
-    TabPane, 
+    ListView,
+    ListItem,
+    Label,
+    TabbedContent,
+    TabPane,
     Button
     )
 from textual.message import Message
 from textual.events import Click
 from templates import BaseTemplate
-import pyfiglet
+from utils.shoutcast_radio import *
 
 # Set up logging
 log_dir = "../logs"
 os.makedirs(log_dir, exist_ok=True)
 
 logging.basicConfig(
-    filename=f"""../logs/dev-{time.strftime("%Y-%m-%d")}.log""",
+    filename=f"""../logs/dev.log""",
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     filemode='a'
@@ -47,6 +48,7 @@ class RadioPage(BaseTemplate):
 
     def __init__(self) -> None:
         super().__init__(subtitle="Radio Page")
+        self.shoutcast_radio = ShoutcastRadio()
 
     def compose(self) -> ComposeResult:
         yield Header(
@@ -62,21 +64,12 @@ class RadioPage(BaseTemplate):
                 with TabbedContent(id="section_tabs"):
                     with TabPane("Genres", id="tab_genres"):
                         yield ListView(
-                            ListItem(Label("Made For You")),
-                            ListItem(Label("Recently Played")),
-                            ListItem(Label("Liked Songs")),
-                            ListItem(Label("Albums")),
-                            ListItem(Label("Artists")),
-                            ListItem(Label("Podcasts")),
+                            ListItem(Label("Loading genres...")),
                             id="genre_list"
                         )
                     with TabPane("Stations", id="tab_stations"):
                         yield ListView(
-                            ListItem(Label("Jazz Classics")),
-                            ListItem(Label("Rock Hits")),
-                            ListItem(Label("Synthwave / Retro Electro")),
-                            ListItem(Label("City Pop Essentials")),
-                            ListItem(Label("Study Beats")),
+                            ListItem(Label("Loading stations...")),
                             id="stations_list"
                         )
 
@@ -92,10 +85,22 @@ class RadioPage(BaseTemplate):
 
         yield Footer(id="radio-footer")
 
-    @work(exclusive=True, thread=True)
+    @work(exclusive=True)
     async def on_mount(self) -> None:
-        pass
+        genre_list_view = self.query_one("#genre_list", ListView)
+        genre_list_view.clear()
+        genres = await self.shoutcast_radio.get_all_genres(async_request=True)
+        if genres:
+            for genre in genres:
+                genre_list_view.append(ListItem(Label(genre["name"])))
+        else:
+            genre_list_view.append(ListItem(Label("No genres available.")))
 
-    def on_click(self, event: Click) -> None:
-        pass
-        # logger.debug(f"Clicked on {event.sender.id}")
+        stations_list_view = self.query_one("#stations_list", ListView)
+        stations_list_view.clear()
+        stations = await self.shoutcast_radio.get_now_playing_stations(async_request=True)
+        if stations:
+            for station in stations:
+                stations_list_view.append(ListItem(Label(station["name"])))
+        else:
+            stations_list_view.append(ListItem(Label("No stations available.")))
