@@ -1,6 +1,5 @@
 import os
 import logging
-from textual.logging import TextualHandler
 from textual import work
 from textual.app import ComposeResult
 from textual.containers import Container
@@ -67,9 +66,9 @@ class SearchInput(Input):
         if search_term:
             self.post_message(self.Submitted(self, search_term, None))
 
-class HomePage(BaseTemplate):
+class RadioPage(BaseTemplate):
     def __init__(self) -> None:
-        super().__init__(subtitle="Home Page")
+        super().__init__(subtitle="Radio Page")
         self.stations = []
         self.radio = ShoutcastRadio()
         self.radio_player = ShoutcastRadioPlayer()
@@ -129,6 +128,6 @@ class HomePage(BaseTemplate):
             self.screen.focused.blur()
 
     def on_radio_data_table_selected(self, message) -> None:
-        """Handle station selection from the home page."""
+        """Handle station selection from the radio page."""
         stream_url = message.station['stream_url']
         self.radio_player.play_stream_url(stream_url)
