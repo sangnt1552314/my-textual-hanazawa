@@ -7,3 +7,4 @@ rich-pixels
 httpx
 python-vlc
 xmltodict
+pygame

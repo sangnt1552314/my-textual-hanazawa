@@ -65,7 +65,7 @@ Screen {
 }
 
 /* ListViews in sidebar */
-#stations_list, #genre_list {
+.tab-item-list {
     background: #002635;
     border: solid #00384D; /* panel border */
     # height: auto;
@@ -91,11 +91,11 @@ Screen {
 }
 
 /* ListView items (tracks) */
-#playlist_tracks {
+#playing_station_list {
     background: #002635;
     border: none;
     margin: 1;
 }
-#playlist_tracks > ListItem {
+#playing_station_list > ListItem {
     padding: 0 1;
 }
