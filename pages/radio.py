@@ -60,7 +60,14 @@ class RadioPage(BaseTemplate):
         yield Input(placeholder="Search...", id="search_input")
 
         with Container(id="body_container"):
-            with Container(id="sidebar"):
+            with Vertical(id="sidebar"):
+                # with Container(id="now-playing"):
+                #     yield Label("Now Playing Station", id="now-title")
+                #     yield ListView(
+                #         ListItem(Label("Loading stations...")),
+                #         id="now_playing_stations_list"
+                #     )
+
                 with TabbedContent(id="section_tabs"):
                     with TabPane("Genres", id="tab_genres"):
                         yield ListView(

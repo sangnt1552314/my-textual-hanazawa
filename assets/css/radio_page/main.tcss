@@ -41,6 +41,21 @@ Screen {
     overflow: auto;
 }
 
+#now-playing {
+    height: 25%;
+    padding: 0 1 0 0;
+    dock: top;
+}
+
+#now-title {
+    text-style: bold;
+    color: #00FFFF;
+}
+
+#section_tabs {
+    height: 1fr; /* Let it fill remaining space */
+}
+
 /* TabPane headers in sidebar */
 #section_tabs > .tab_button {
     background: #002635;
