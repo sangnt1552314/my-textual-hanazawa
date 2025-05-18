@@ -34,7 +34,9 @@ class VLCPlayer(AudioPlayer):
         self.instance = None
         try:
             import vlc
-            os.add_dll_directory(r'C:\Program Files\VideoLAN\VLC')
+            import platform
+            if platform.system() == 'Windows':
+                os.add_dll_directory(r'C:\Program Files\VideoLAN\VLC')
             # self.instance = vlc.Instance(['--no-video', '--quiet'])
             self.is_available = True
         except (ImportError, FileNotFoundError):
