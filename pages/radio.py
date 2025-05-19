@@ -25,8 +25,8 @@ from utils.audio_player import ShoutcastRadioPlayer
 logging.basicConfig(
     filename=f"dev.log",
     level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    filemode='a'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filemode='w' # a = append, w = overwrite
 )
 logger = logging.getLogger(__name__)
 
@@ -38,10 +38,6 @@ class RadioPage(BaseTemplate):
         super().__init__(subtitle="Radio Page")
         self.shoutcast_radio = ShoutcastRadio()
         self.radio_player = ShoutcastRadioPlayer()
-        self.caches = {
-            "genres": False,
-            "top_stations": False,
-        }
 
     def compose(self) -> ComposeResult:
         yield Header(
@@ -153,40 +149,24 @@ class RadioPage(BaseTemplate):
             else:
                 stations_list_view.append(ListItem(Label("No stations found.")))
 
-    async def _init_genre_list(self, force_reload = False):
-        if force_reload:
-            self.caches["genres"] = False
-
-        if self.caches["genres"]:
-            return
-
+    async def _init_genre_list(self):
         genre_list_view = self.query_one("#genre_list", ListView)
 
         try:
             genres = await self.shoutcast_radio.get_primary_genres(async_request=True)
+            if genres:
+                genre_list_view.clear()
+                for genre in genres:
+                    genre_list_view.append(ListItem(Label(genre["name"], id=f"genre-{genre["id"]}")))
+            else:
+                genre_list_view.append(ListItem(Label("No genres available.")))
         except Exception as e:
             self.notify(f"Error loading genres", severity="error")
             return
 
-        if genres:
-            genre_list_view.clear()
-            for genre in genres:
-                genre_list_view.append(ListItem(Label(genre["name"], id=f"genre-{genre["id"]}")))
-        else:
-            genre_list_view.append(ListItem(Label("No genres available.")))
-
-        if not self.caches["genres"] and not force_reload:
-            self.caches["genres"] = True
-
-    async def _init_top_stations(self, force_reload = False):
-        if force_reload:
-            self.caches["top_stations"] = False
-
-        if self.caches["top_stations"]:
-            return
-
+    async def _init_top_stations(self):
         stations_list_view = self.query_one("#top_stations_list", ListView)
-        
+
         if stations_list_view.children:
             return
         try:
@@ -194,13 +174,10 @@ class RadioPage(BaseTemplate):
         except Exception as e:
             self.notify(f"Error loading top stations", severity="error")
             return
-        
+
         if stations:
             stations_list_view.clear()
             for station in stations:
                 stations_list_view.append(ListItem(Label(station["name"], id=f"station-{station["id"]}")))
         else:
             stations_list_view.append(ListItem(Label("No stations available.")))
-
-        if not self.caches["top_stations"] and not force_reload:
-            self.caches["top_stations"] = True

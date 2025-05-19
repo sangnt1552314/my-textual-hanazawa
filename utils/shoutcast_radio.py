@@ -8,7 +8,7 @@ from urllib.parse import quote
 
 load_dotenv()
 
-SHOUTCAST_BASE_URL = "https://api.shoutcast.com"
+SHOUTCAST_BASE_URL = "http://api.shoutcast.com"
 YP_SHOUTCAST_URL = "http://yp.shoutcast.com"
 TIMEOUT_DEFAULT = 5
 
