@@ -97,7 +97,7 @@ class RadioPage(BaseTemplate):
                     stream_url = self.shoutcast_radio.get_station_stream_url(station_id)
 
                     if not self.radio_player.is_available:
-                        self.notify("VLC is not available. Please install VLC media player.", severity="error")
+                        self.notify("Player is not available. Please install player.", severity="error")
                         return
 
                     if not stream_url:

@@ -1,4 +1,6 @@
 import os
+import subprocess
+import threading
 from abc import ABC, abstractmethod
 
 class AudioPlayer(ABC):
@@ -46,16 +48,82 @@ class VLCPlayer(AudioPlayer):
             self.player.release()
             self.player = None
 
+class WindowsMediaPlayer(AudioPlayer):
+    def __init__(self):
+        self.player_process = None
+        self.player_thread = None
+        self.wmp_path = r'C:\Program Files (x86)\Windows Media Player\wmplayer.exe'
+        self.is_available = os.path.exists(self.wmp_path)
+        import atexit
+        atexit.register(self._cleanup)
+
+    def _cleanup(self):
+        """Ensure process is terminated when program exits"""
+        try:
+            if self.player_process:
+                self.stop()
+        except:
+            # Ensure no exceptions during shutdown
+            if self.player_process:
+                try:
+                    self.player_process.kill()
+                except:
+                    pass
+
+    def _play_in_thread(self, url: str) -> None:
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        self.player_process = subprocess.Popen(
+            [self.wmp_path, '/play', '/close', url],
+            startupinfo=startupinfo,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
+        )
+        self.player_process.wait()
+
+    def play_stream_url(self, url: str) -> None:
+        if not self.is_available:
+            raise RuntimeError("Windows Media Player is not available. Cannot play audio.")
+        
+        # Stop any existing playback
+        if self.player_process:
+            self.stop()
+
+        # Start new playback in a separate thread
+        self.player_thread = threading.Thread(
+            target=self._play_in_thread,
+            args=[url]
+        )
+        self.player_thread.daemon = True  # Thread will be terminated when main program exits
+        self.player_thread.start()
+
+    def stop(self) -> None:
+        if self.player_process:
+            # Try graceful termination first
+            self.player_process.terminate()
+            try:
+                self.player_process.wait(timeout=2)  # Wait up to 2 seconds
+            except subprocess.TimeoutExpired:
+                # Force kill if graceful termination fails
+                self.player_process.kill()
+            
+            self.player_process = None
+            self.player_thread = None
+        else:
+            raise RuntimeError("No player is currently playing.")
+
 class ShoutcastRadioPlayer:
     def __init__(self):
         self.players = []
         self.current_player = None
         
-        # Try to initialize VLC player
         vlc_player = VLCPlayer()
         if vlc_player.is_available:
             self.players.append(vlc_player)
-            
+
+        wmp_player = WindowsMediaPlayer()
+        if wmp_player.is_available:
+            self.players.append(wmp_player)
+
         self.is_available = len(self.players) > 0
 
     def play_stream_url(self, url: str) -> None:
