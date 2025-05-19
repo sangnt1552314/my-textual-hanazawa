@@ -42,7 +42,7 @@ python main.py
 ### Controls
 - `q`: Quit application
 - `r`: Switch to Radio page
-- `s`: Switch to Settings page
+- `ctrl + s`: Switch to Settings page
 
 ## Development
 
