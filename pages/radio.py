@@ -91,7 +91,6 @@ class RadioPage(BaseTemplate):
             case "tab_stations":
                 await self._init_top_stations()
         
-
     @work(exclusive=True)
     async def on_list_view_selected(self, message: ListView.Selected) -> None:
         list_view = message.list_view
