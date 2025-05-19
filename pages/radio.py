@@ -50,7 +50,7 @@ class RadioPage(BaseTemplate):
             id="radio-header"
         )
 
-        yield Input(placeholder="Search...", id="search_input")
+        yield Input(placeholder="Search...(supports querying multiple artists in the same query by using '||'. ex: ct=madonna||u2||beyonce up to 10 artists)", id="search_input")
 
         with Container(id="body_container"):
             with Vertical(id="sidebar"):
@@ -117,7 +117,21 @@ class RadioPage(BaseTemplate):
                     logger.error(f"Error playing station: {e}")
                     self.notify(f"Error playing station: {str(e)}", severity="error")
             case "genre_list":
-                pass
+                try:
+                    genre = message.item.children[0]
+                    genre_id = re.search(r"genre-(\d+)", genre.id).group(1)
+                    stations_list_view = self.query_one("#playing_station_list", ListView)
+                    stations_list_view.clear()
+                    stations = await self.shoutcast_radio.get_stations_by_genre_or_bitrate(genre_id=genre_id, async_request=True)
+                    if stations:
+                        for station in stations:
+                            stations_list_view.append(
+                                ListItem(Label(station["name"], id=f"station-{station["id"]}")))
+                    else:
+                        stations_list_view.append(ListItem(Label("No stations found.")))
+                except Exception as e:
+                    logger.error(f"Error loading stations by genre: {e}")
+                    self.notify(f"Error loading stations by genre: {str(e)}", severity="error")
 
     @work(exclusive=True)
     async def on_input_submitted(self, event: Input.Submitted) -> None:
@@ -149,7 +163,7 @@ class RadioPage(BaseTemplate):
         genre_list_view = self.query_one("#genre_list", ListView)
 
         try:
-            genres = await self.shoutcast_radio.get_all_genres(async_request=True)
+            genres = await self.shoutcast_radio.get_primary_genres(async_request=True)
         except Exception as e:
             self.notify(f"Error loading genres", severity="error")
             return
@@ -157,7 +171,7 @@ class RadioPage(BaseTemplate):
         if genres:
             genre_list_view.clear()
             for genre in genres:
-                genre_list_view.append(ListItem(Label(genre["name"])))
+                genre_list_view.append(ListItem(Label(genre["name"], id=f"genre-{genre["id"]}")))
         else:
             genre_list_view.append(ListItem(Label("No genres available.")))
 
@@ -176,7 +190,7 @@ class RadioPage(BaseTemplate):
         if stations_list_view.children:
             return
         try:
-            stations = await self.shoutcast_radio.get_top_500_stations(async_request=True, limit=10)
+            stations = await self.shoutcast_radio.get_top_500_stations(async_request=True, limit=(20, 0))
         except Exception as e:
             self.notify(f"Error loading top stations", severity="error")
             return
