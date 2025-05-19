@@ -10,7 +10,7 @@ class HanazawaApp(App):
     BINDINGS = [
         Binding(key="q", action="quit", description="Quit"),
         Binding(key="r", action="switch_mode('radio')", description="Radio"),
-        Binding(key="s", action="switch_mode('settings')", description="Settings"),
+        Binding(key="ctrl+s", action="switch_mode('settings')", description="Settings"),
     ]
 
     MODES = {

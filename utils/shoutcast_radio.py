@@ -3,128 +3,14 @@ import asyncio
 import httpx
 import requests
 import xmltodict
-from abc import ABC, abstractmethod
 from dotenv import load_dotenv
 from urllib.parse import quote
-
-try:
-    import vlc
-    VLC_AVAILABLE = True
-except (ImportError, FileNotFoundError):
-    VLC_AVAILABLE = False
 
 load_dotenv()
 
 SHOUTCAST_BASE_URL = "https://api.shoutcast.com"
 YP_SHOUTCAST_URL = "http://yp.shoutcast.com"
 TIMEOUT_DEFAULT = 5
-
-class AudioPlayer(ABC):
-    @abstractmethod
-    def play_stream_url(self, url: str) -> None:
-        pass
-
-    @abstractmethod
-    def stop(self) -> None:
-        pass
-
-class VLCPlayer(AudioPlayer):
-    def __init__(self):
-        self.player = None
-        self.instance = None
-        try:
-            import vlc
-            import platform
-            if platform.system() == 'Windows':
-                os.add_dll_directory(r'C:\Program Files\VideoLAN\VLC')
-            # self.instance = vlc.Instance(['--no-video', '--quiet'])
-            self.is_available = True
-        except (ImportError, FileNotFoundError):
-            self.is_available = False
-
-    def play_stream_url(self, url: str) -> None:
-        if not self.is_available:
-            raise RuntimeError("VLC is not available. Cannot play audio.")
-        
-        if self.player is not None:
-            self.player.stop()
-            self.player.release()
-        if self.instance is not None:
-            self.instance.release()
-
-        self.instance = vlc.Instance(['--no-video', '--quiet'])
-        self.player = self.instance.media_player_new()
-        media = self.instance.media_new(url)
-        self.player.set_media(media)
-        self.player.play()
-
-    def stop(self) -> None:
-        if self.player:
-            self.player.stop()
-            self.player.release()
-            self.player = None
-
-class PygamePlayer(AudioPlayer):
-    def __init__(self):
-        try:
-            import pygame
-            pygame.mixer.init()
-            self.is_available = True
-        except ImportError:
-            self.is_available = False
-        self.current_stream = None
-
-    def play_stream_url(self, url: str) -> None:
-        if not self.is_available:
-            raise RuntimeError("Pygame mixer is not available")
-        try:
-            import pygame
-            pygame.mixer.music.load(url)
-            pygame.mixer.music.play()
-            self.current_stream = url
-        except Exception as e:
-            raise RuntimeError(f"Failed to play stream: {str(e)}")
-
-    def stop(self) -> None:
-        if self.is_available:
-            import pygame
-            pygame.mixer.music.stop()
-            self.current_stream = None
-
-class ShoutcastRadioPlayer:
-    def __init__(self):
-        self.players = []
-        self.current_player = None
-        
-        # Try to initialize VLC player
-        vlc_player = VLCPlayer()
-        if vlc_player.is_available:
-            self.players.append(vlc_player)
-            
-        # Try to initialize Pygame player
-        pygame_player = PygamePlayer()
-        if pygame_player.is_available:
-            self.players.append(pygame_player)
-            
-        self.is_available = len(self.players) > 0
-
-    def play_stream_url(self, url: str) -> None:
-        """Play station in background using first available player."""
-        if not self.is_available:
-            raise RuntimeError("No audio players available. Install VLC or pygame.")
-        
-        if self.current_player:
-            self.current_player.stop()
-            
-        for player in self.players:
-            try:
-                player.play_stream_url(url)
-                self.current_player = player
-                return
-            except Exception as e:
-                continue
-                
-        raise RuntimeError("All available players failed to play the stream")
 
 class ShoutcastRadio:
     def __init__(self, api_key = ''):
@@ -142,9 +28,15 @@ class ShoutcastRadio:
 
         if kwargs.get("async_request", False):
             async with httpx.AsyncClient() as client:
-                response = await client.get(f"{SHOUTCAST_BASE_URL}/legacy/genrelist", params=params, timeout=TIMEOUT_DEFAULT)
+                try:
+                    response = await client.get(f"{SHOUTCAST_BASE_URL}/legacy/genrelist", params=params, timeout=TIMEOUT_DEFAULT)
+                except httpx.TimeoutException:
+                    raise Exception("Request timed out. Please try again later.")
         else:
-            response = requests.get(f"{SHOUTCAST_BASE_URL}/legacy/genrelist", params=params, timeout=TIMEOUT_DEFAULT)
+            try:
+                response = requests.get(f"{SHOUTCAST_BASE_URL}/legacy/genrelist", params=params, timeout=TIMEOUT_DEFAULT)
+            except requests.exceptions.Timeout:
+                raise Exception("Request timed out. Please try again later.")
 
         if response.status_code != 200:
             raise Exception(f"Error fetching genres: {response.status_code} - {response.text}")
@@ -174,9 +66,15 @@ class ShoutcastRadio:
         # Handle both async and sync requests
         if kwargs.get("async_request", False):
             async with httpx.AsyncClient() as client:
-                response = await client.get(f"{SHOUTCAST_BASE_URL}/legacy/Top500", params=params, timeout=TIMEOUT_DEFAULT)
+                try:
+                    response = await client.get(f"{SHOUTCAST_BASE_URL}/legacy/Top500", params=params, timeout=TIMEOUT_DEFAULT)
+                except httpx.TimeoutException:
+                    raise Exception("Request timed out. Please try again later.")
         else:
-            response = requests.get(f"{SHOUTCAST_BASE_URL}/legacy/Top500", params=params, timeout=TIMEOUT_DEFAULT)
+            try:
+                response = requests.get(f"{SHOUTCAST_BASE_URL}/legacy/Top500", params=params, timeout=TIMEOUT_DEFAULT)
+            except requests.exceptions.Timeout:
+                raise Exception("Request timed out. Please try again later.")
 
         if response.status_code != 200:
             raise Exception(f"Error fetching top stations: {response.status_code} - {response.text}")

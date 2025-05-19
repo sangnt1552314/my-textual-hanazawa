@@ -8,3 +8,4 @@ httpx
 python-vlc
 xmltodict
 pygame
+textual-web
