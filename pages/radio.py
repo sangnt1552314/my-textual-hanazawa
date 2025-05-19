@@ -80,15 +80,14 @@ class RadioPage(BaseTemplate):
 
     @work(exclusive=True)
     async def on_tabbed_content_tab_activated(self, message: TabbedContent.TabActivated) -> None:
-        tab_id = message.tab.id
+        tab_id = message.tab.id.replace("--content-tab-", "")
         match tab_id:
             case "tab_genres":
                 await self._init_genre_list()
             case "tab_stations":
                 await self._init_top_stations()
-        
-    @work(exclusive=True)
-    async def on_list_view_selected(self, message: ListView.Selected) -> None:
+
+    def on_list_view_selected(self, message: ListView.Selected) -> None:
         list_view = message.list_view
         match list_view.id:
             case "top_stations_list" | "playing_station_list":
@@ -98,13 +97,13 @@ class RadioPage(BaseTemplate):
                     stream_url = self.shoutcast_radio.get_station_stream_url(station_id)
 
                     if not self.radio_player.is_available:
-                            self.notify("VLC is not available. Please install VLC media player.", severity="error")
-                            return
-                            
+                        self.notify("VLC is not available. Please install VLC media player.", severity="error")
+                        return
+
                     if not stream_url:
                         self.notify("Could not get stream URL for this station", severity="error")
                         return
-                    
+
                     self.radio_player.play_stream_url(stream_url)
                     self.notify(f"Playing station {station_id}")
                 except RuntimeError as e:
@@ -116,15 +115,19 @@ class RadioPage(BaseTemplate):
                 try:
                     genre = message.item.children[0]
                     genre_id = re.search(r"genre-(\d+)", genre.id).group(1)
+
                     stations_list_view = self.query_one("#playing_station_list", ListView)
                     stations_list_view.clear()
-                    stations = await self.shoutcast_radio.get_stations_by_genre_or_bitrate(genre_id=genre_id, async_request=True)
-                    if stations:
-                        for station in stations:
-                            stations_list_view.append(
-                                ListItem(Label(station["name"], id=f"station-{station["id"]}")))
-                    else:
+
+                    stations = self.shoutcast_radio.get_stations_by_genre_or_bitrate_sync(genre_id=genre_id)
+                    if not stations:
                         stations_list_view.append(ListItem(Label("No stations found.")))
+                        return
+                    
+                    for station in stations:
+                        station_name = self._sanitize_station_name(station["name"])
+                        station_id = f"station-{station["id"]}"
+                        stations_list_view.append(ListItem(Label(station_name, id=station_id)))
                 except Exception as e:
                     logger.error(f"Error loading stations by genre: {e}")
                     self.notify(f"Error loading stations by genre: {str(e)}", severity="error")
@@ -134,26 +137,37 @@ class RadioPage(BaseTemplate):
         search_query = event.value.strip()
         search_query = search_query.replace(" ", "+")
 
+        stations_list_view = self.query_one("#playing_station_list", ListView)
+        stations_list_view.clear()
+
         if search_query == "":
-            logger.debug("Search query is empty.")
+            stations_list_view.append(ListItem(Label("No stations found.")))
             return
-        
+
         if search_query:
-            stations_list_view = self.query_one("#playing_station_list", ListView)
-            stations_list_view.clear()
-            stations = await self.shoutcast_radio.get_now_playing_stations(ct=search_query, async_request=True)
-            if stations:
+            try:
+                stations = await self.shoutcast_radio.get_now_playing_stations(ct=search_query)
+                if not stations:
+                    stations_list_view.append(ListItem(Label("No stations found.")))
+                    return
+
                 for station in stations:
-                    stations_list_view.append(
-                        ListItem(Label(station["name"], id=f"station-{station["id"]}")))
-            else:
+                        station_name = self._sanitize_station_name(station["name"])
+                        station_id = f"station-{station["id"]}"
+                        stations_list_view.append(ListItem(Label(station_name, id=station_id)))
+            except Exception as e:
                 stations_list_view.append(ListItem(Label("No stations found.")))
+                self.notify(f"Error loading station", severity="error")
+                return
 
     async def _init_genre_list(self):
         genre_list_view = self.query_one("#genre_list", ListView)
 
+        if genre_list_view.children:
+            return
+
         try:
-            genres = await self.shoutcast_radio.get_primary_genres(async_request=True)
+            genres = await self.shoutcast_radio.get_primary_genres()
             if genres:
                 genre_list_view.clear()
                 for genre in genres:
@@ -169,15 +183,23 @@ class RadioPage(BaseTemplate):
 
         if stations_list_view.children:
             return
+
         try:
-            stations = await self.shoutcast_radio.get_top_500_stations(async_request=True, limit=(20, 0))
+            stations = await self.shoutcast_radio.get_top_500_stations(limit=(20, 0))
+            if stations:
+                stations_list_view.clear()
+                for station in stations:
+                    stations_list_view.append(ListItem(Label(station["name"], id=f"station-{station["id"]}")))
+            else:
+                stations_list_view.append(ListItem(Label("No stations available.")))
         except Exception as e:
             self.notify(f"Error loading top stations", severity="error")
             return
 
-        if stations:
-            stations_list_view.clear()
-            for station in stations:
-                stations_list_view.append(ListItem(Label(station["name"], id=f"station-{station["id"]}")))
-        else:
-            stations_list_view.append(ListItem(Label("No stations available.")))
+    def _sanitize_station_name(self, name: str) -> str:
+        """Sanitize station name by removing problematic characters."""
+        # Remove or replace problematic characters
+        name = re.sub(r'[\[\]]', '', name)  # Remove square brackets
+        name = re.sub(r'[^\x20-\x7E]', '', name)  # Remove non-printable characters
+        name = name.strip()
+        return name if name else "Unnamed Station"

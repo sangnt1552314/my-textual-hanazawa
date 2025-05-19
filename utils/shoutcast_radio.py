@@ -1,4 +1,5 @@
 import os
+import logging
 import asyncio
 import httpx
 import requests
@@ -11,6 +12,14 @@ load_dotenv()
 SHOUTCAST_BASE_URL = "http://api.shoutcast.com"
 YP_SHOUTCAST_URL = "http://yp.shoutcast.com"
 TIMEOUT_DEFAULT = 5
+
+logging.basicConfig(
+    filename=f"dev.log",
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filemode='w' # a = append, w = overwrite
+)
+logger = logging.getLogger(__name__)
 
 class ShoutcastRadio:
     def __init__(self, api_key = ''):
@@ -82,7 +91,7 @@ class ShoutcastRadio:
         response = await self._shoutcast_request_async("genre/secondary", params)
 
         return self._process_primary_genres_response(response)
-    
+
     def get_secondary_genres_sync(self, **kwargs):
         """
         Get the list of secondary genres synchronously.
@@ -111,7 +120,7 @@ class ShoutcastRadio:
         response = await self._shoutcast_request_async("legacy/Top500", params)
 
         return self._process_top_stations_response(response)
-    
+
     def get_top_500_stations_sync(self, **kwargs):
         """
         Get the list of top 500 stations synchronously.
@@ -142,7 +151,7 @@ class ShoutcastRadio:
         response = await self._shoutcast_request_async("station/nowplaying", params)
 
         return self._process_station_response(response)
-    
+
     def get_now_playing_stations_sync(self, **kwargs):
         """
         Get the list of now playing stations synchronously.
@@ -158,7 +167,7 @@ class ShoutcastRadio:
         response = self._shoutcast_request_sync("station/nowplaying", params)
 
         return self._process_station_response(response)
-    
+
     async def get_stations_by_genre_or_bitrate(self, **kwargs):
         """
         Get the list of stations by genre or bitrate asynchronously.
@@ -175,7 +184,7 @@ class ShoutcastRadio:
         response = await self._shoutcast_request_async("station/advancedsearch", params)
 
         return self._process_station_response(response)
-    
+
     def get_stations_by_genre_or_bitrate_sync(self, **kwargs):
         """
         Get the list of stations by genre or bitrate synchronously.

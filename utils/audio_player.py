@@ -46,33 +46,6 @@ class VLCPlayer(AudioPlayer):
             self.player.release()
             self.player = None
 
-class PygamePlayer(AudioPlayer):
-    def __init__(self):
-        try:
-            import pygame
-            pygame.mixer.init()
-            self.is_available = True
-        except ImportError:
-            self.is_available = False
-        self.current_stream = None
-
-    def play_stream_url(self, url: str) -> None:
-        if not self.is_available:
-            raise RuntimeError("Pygame mixer is not available")
-        try:
-            import pygame
-            pygame.mixer.music.load(url)
-            pygame.mixer.music.play()
-            self.current_stream = url
-        except Exception as e:
-            raise RuntimeError(f"Failed to play stream: {str(e)}")
-
-    def stop(self) -> None:
-        if self.is_available:
-            import pygame
-            pygame.mixer.music.stop()
-            self.current_stream = None
-
 class ShoutcastRadioPlayer:
     def __init__(self):
         self.players = []
@@ -82,11 +55,6 @@ class ShoutcastRadioPlayer:
         vlc_player = VLCPlayer()
         if vlc_player.is_available:
             self.players.append(vlc_player)
-            
-        # Try to initialize Pygame player
-        pygame_player = PygamePlayer()
-        if pygame_player.is_available:
-            self.players.append(pygame_player)
             
         self.is_available = len(self.players) > 0
 
