@@ -3,6 +3,7 @@ import subprocess
 import threading
 from abc import ABC, abstractmethod
 
+
 class AudioPlayer(ABC):
     @abstractmethod
     def play_stream_url(self, url: str) -> None:
@@ -11,6 +12,7 @@ class AudioPlayer(ABC):
     @abstractmethod
     def stop(self) -> None:
         pass
+
 
 class VLCPlayer(AudioPlayer):
     def __init__(self):
@@ -28,7 +30,7 @@ class VLCPlayer(AudioPlayer):
     def play_stream_url(self, url: str) -> None:
         if not self.is_available:
             raise RuntimeError("VLC is not available. Cannot play audio.")
-        
+
         if self.player is not None:
             self.player.stop()
             self.player.release()
@@ -47,6 +49,7 @@ class VLCPlayer(AudioPlayer):
             self.player.stop()
             self.player.release()
             self.player = None
+
 
 class WindowsMediaPlayer(AudioPlayer):
     def __init__(self):
@@ -83,7 +86,7 @@ class WindowsMediaPlayer(AudioPlayer):
     def play_stream_url(self, url: str) -> None:
         if not self.is_available:
             raise RuntimeError("Windows Media Player is not available. Cannot play audio.")
-        
+
         # Stop any existing playback
         if self.player_process:
             self.stop()
@@ -93,7 +96,8 @@ class WindowsMediaPlayer(AudioPlayer):
             target=self._play_in_thread,
             args=[url]
         )
-        self.player_thread.daemon = True  # Thread will be terminated when main program exits
+        # Thread will be terminated when main program exits
+        self.player_thread.daemon = True
         self.player_thread.start()
 
     def stop(self) -> None:
@@ -105,17 +109,19 @@ class WindowsMediaPlayer(AudioPlayer):
             except subprocess.TimeoutExpired:
                 # Force kill if graceful termination fails
                 self.player_process.kill()
-            
+
             self.player_process = None
             self.player_thread = None
         else:
             raise RuntimeError("No player is currently playing.")
 
+
 class ShoutcastRadioPlayer:
     def __init__(self):
         self.players = []
         self.current_player = None
-        
+        self.is_playing = False
+
         vlc_player = VLCPlayer()
         if vlc_player.is_available:
             self.players.append(vlc_player)
@@ -130,22 +136,25 @@ class ShoutcastRadioPlayer:
         """Play station in background using first available player."""
         if not self.is_available:
             raise RuntimeError("No audio players available. Install VLC or pygame.")
-        
+
         if self.current_player:
             self.current_player.stop()
-            
+
         for player in self.players:
             try:
                 player.play_stream_url(url)
                 self.current_player = player
+                self.is_playing = True
                 return
             except Exception as e:
                 continue
-                
+
         raise RuntimeError("All available players failed to play the stream")
-    
+
     def stop(self) -> None:
         """Stop the current player."""
+        self.is_playing = False
+
         if self.current_player:
             self.current_player.stop()
             self.current_player = None

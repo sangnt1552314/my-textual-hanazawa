@@ -29,6 +29,7 @@ Screen {
     height: auto;
     border: solid #00FFFF;
     max-height: 100;
+    # margin-bottom: 4;q
 }
 
 /* Sidebar panel */
@@ -41,10 +42,10 @@ Screen {
     overflow: auto;
 }
 
-#now-playing {
-    height: 25%;
-    padding: 0 1 0 0;
-    dock: top;
+#playing_station_container {
+    height: 5%;
+    padding: 0 0 0 0;
+    # dock: top;
 }
 
 #now-title {
@@ -95,7 +96,50 @@ Screen {
     background: #002635;
     border: none;
     margin: 1;
+    padding: 0 0 0 0;
 }
 #playing_station_list > ListItem {
+    padding: 0 1 0 0;
+}
+
+/* Add these styles to your existing CSS */
+
+#player_bar {
+    dock: bottom;
+    height: 3;
+    background: $boost;
+    border-top: solid $primary;
     padding: 0 1;
+    margin-bottom: 1;
+}
+
+#player_bar Horizontal {
+    height: 100%;
+    align: center middle;
+    padding: 0 2;
+}
+
+#play_pause_button {
+    width: 3;
+    min-width: 3;
+    height: 1;
+    margin: 0 1;
+    background: $primary;
+    color: $text;
+    border: none;
+}
+
+#play_pause_button:hover {
+    background: $primary-darken-1;
+}
+
+#player_status {
+    color: $text;
+    width: auto;
+    padding-left: 1;
+}
+
+#current_station {
+    color: $accent;
+    width: auto;
 }

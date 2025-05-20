@@ -17,12 +17,13 @@ logging.basicConfig(
     filename=f"dev.log",
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filemode='w' # a = append, w = overwrite
+    filemode='w'  # a = append, w = overwrite
 )
 logger = logging.getLogger(__name__)
 
+
 class ShoutcastRadio:
-    def __init__(self, api_key = ''):
+    def __init__(self, api_key=''):
         self.api_key = api_key or os.getenv("SHOUTCAST_API_KEY")
 
         if not self.api_key:
@@ -198,11 +199,12 @@ class ShoutcastRadio:
             "genre_id": kwargs.get("genre_id", ""),
         }
 
-        response = self._shoutcast_request_sync("station/advancedsearch", params)
+        response = self._shoutcast_request_sync(
+            "station/advancedsearch", params)
 
         return self._process_station_response(response)
 
-    def get_station_stream_url(self, station_id="", tunin = {}):
+    def get_station_stream_url(self, station_id="", tunin={}):
         """
         Get the stream URL for a given station ID.
         """
@@ -215,7 +217,6 @@ class ShoutcastRadio:
                 'base-m3u': '/sbin/tunein-station.m3u',
                 'base-xspf': '/sbin/tunein-station.xspf'
             }
-
 
         tunin_base = tunin.get("base", "") or tunin.get("@base", "")
         # tunin_base_m3u = tunin.get("base-m3u", "") or tunin.get("@base-m3u", "")
@@ -246,7 +247,8 @@ class ShoutcastRadio:
         Helper function to make a GET request to the Shoutcast API synchronously.
         """
         try:
-            response = requests.get(f"{SHOUTCAST_BASE_URL}/{endpoint}", params=params, timeout=TIMEOUT_DEFAULT)
+            response = requests.get(
+                f"{SHOUTCAST_BASE_URL}/{endpoint}", params=params, timeout=TIMEOUT_DEFAULT)
             response.raise_for_status()
         except requests.exceptions.Timeout:
             raise Exception("Request timed out. Please try again later.")
@@ -256,7 +258,8 @@ class ShoutcastRadio:
             raise Exception(f"An unexpected error occurred: {e}")
 
         if response.status_code != 200:
-            raise Exception(f"Error fetching data: {response.status_code} - {response.text} - {endpoint} - {params}")
+            raise Exception(
+                f"Error fetching data: {response.status_code} - {response.text} - {endpoint} - {params}")
 
         return response
 
@@ -276,7 +279,8 @@ class ShoutcastRadio:
                 raise Exception(f"An unexpected error occurred: {e}")
 
         if response.status_code != 200:
-            raise Exception(f"Error fetching data: {response.status_code} - {response.text} - {endpoint} - {params}")
+            raise Exception(
+                f"Error fetching data: {response.status_code} - {response.text} - {endpoint} - {params}")
 
         return response
 
@@ -300,7 +304,8 @@ class ShoutcastRadio:
         Helper method to process the genres response.
         """
         data = response.json()
-        genre_list = data.get("response", {}).get("data", {}).get("genrelist", {}).get("genre", {})
+        genre_list = data.get("response", {}).get(
+            "data", {}).get("genrelist", {}).get("genre", {})
 
         if not genre_list:
             return []
@@ -338,7 +343,8 @@ class ShoutcastRadio:
         Helper method to process the station response.
         """
         data = response.json()
-        stations = data.get("response", {}).get("data", {}).get("stationlist", {}).get("station", {})
+        stations = data.get("response", {}).get("data", {}).get(
+            "stationlist", {}).get("station", {})
 
         if not stations:
             return []
@@ -352,6 +358,7 @@ class ShoutcastRadio:
             }
             for station in stations
         ]
+
 
 async def main():
     # Example usage

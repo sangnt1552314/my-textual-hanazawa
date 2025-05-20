@@ -7,6 +7,7 @@ from textual.app import ComposeResult
 from textual.containers import (
     Container,
     Vertical,
+    Horizontal
 )
 from textual.widgets import (
     Input,
@@ -17,7 +18,8 @@ from textual.widgets import (
     Label,
     TabbedContent,
     TabPane,
-    )
+    Button
+)
 from templates import BaseTemplate
 from utils.shoutcast_radio import *
 from utils.audio_player import ShoutcastRadioPlayer
@@ -26,9 +28,10 @@ logging.basicConfig(
     filename=f"dev.log",
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filemode='w' # a = append, w = overwrite
+    filemode='w'  # a = append, w = overwrite
 )
 logger = logging.getLogger(__name__)
+
 
 # Radio Page
 class RadioPage(BaseTemplate):
@@ -38,6 +41,7 @@ class RadioPage(BaseTemplate):
         super().__init__(subtitle="Radio Page")
         self.shoutcast_radio = ShoutcastRadio()
         self.radio_player = ShoutcastRadioPlayer()
+        self.current_stream_url = None
 
     def compose(self) -> ComposeResult:
         yield Header(
@@ -46,13 +50,12 @@ class RadioPage(BaseTemplate):
             id="radio-header"
         )
 
-        yield Input(placeholder="Search...(supports querying multiple artists in the same query by using '||'. ex: ct=madonna||u2||beyonce up to 10 artists)", id="search_input")
+        yield Input(placeholder="Search...", 
+                    id="search_input", 
+                    tooltip="supports querying multiple artists in the same query by using '||'. ex: ct=madonna||u2||beyonce up to 10 artists")
 
         with Container(id="body_container"):
             with Vertical(id="sidebar"):
-                # with Container(id="now-playing"):
-                #     yield Label("Now Playing Station", id="now-title")
-
                 with TabbedContent(id="section_tabs"):
                     with TabPane("Genres", id="tab_genres"):
                         yield ListView(
@@ -66,12 +69,20 @@ class RadioPage(BaseTemplate):
                         )
 
             with Container(id="main_content"):
-                welcome_text = pyfiglet.figlet_format(os.getenv('APP_NAME', 'Radio'), font="slant")
+                welcome_text = pyfiglet.figlet_format(
+                    os.getenv('APP_NAME', 'Radio'), font="slant")
                 yield Label(welcome_text, classes="header")
-                yield ListView(
-                    id="playing_station_list"
-                )
+                with Horizontal(id="now_playing_container"):
+                    yield ListView(
+                        id="playing_station_list"
+                    )
 
+        with Container(id="player_bar"):
+            with Horizontal():
+                yield Button("⏵", id="play_pause_button", variant="primary", disabled=True)
+                yield Label("Now Playing: ", id="player_status")
+                yield Label("No station selected", id="current_station")
+        
         yield Footer()
 
     @work(exclusive=True)
@@ -87,6 +98,15 @@ class RadioPage(BaseTemplate):
             case "tab_stations":
                 await self._init_top_stations()
 
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "play_pause_button":
+            if self.radio_player.is_playing:
+                self.radio_player.stop()
+                event.button.label = "⏵" 
+            else:
+                self.radio_player.play_stream_url(self.current_stream_url)
+                event.button.label = "⏸"
+
     def on_list_view_selected(self, message: ListView.Selected) -> None:
         list_view = message.list_view
         match list_view.id:
@@ -95,6 +115,7 @@ class RadioPage(BaseTemplate):
                     station = message.item.children[0]
                     station_id = re.search(r"station-(\d+)", station.id).group(1)
                     stream_url = self.shoutcast_radio.get_station_stream_url(station_id)
+                    self.current_stream_url = stream_url
 
                     if not self.radio_player.is_available:
                         self.notify("Player is not available. Please install player.", severity="error")
@@ -104,10 +125,15 @@ class RadioPage(BaseTemplate):
                         self.notify("Could not get stream URL for this station", severity="error")
                         return
 
-                    self.radio_player.play_stream_url(stream_url)
                     self.notify(f"Playing station {station_id}")
-                except RuntimeError as e:
-                    self.notify(str(e), severity="error")
+
+                    current_station_label = self.query_one("#current_station", Label)
+                    current_station_label.update(station._content)
+
+                    self.query_one("#play_pause_button", Button).disabled = False
+                    self.query_one("#play_pause_button", Button).label = "⏸"
+
+                    self.radio_player.play_stream_url(stream_url)
                 except Exception as e:
                     logger.error(f"Error playing station: {e}")
                     self.notify(f"Error playing station: {str(e)}", severity="error")
@@ -116,18 +142,23 @@ class RadioPage(BaseTemplate):
                     genre = message.item.children[0]
                     genre_id = re.search(r"genre-(\d+)", genre.id).group(1)
 
-                    stations_list_view = self.query_one("#playing_station_list", ListView)
+                    stations_list_view = self.query_one(
+                        "#playing_station_list", ListView)
                     stations_list_view.clear()
 
-                    stations = self.shoutcast_radio.get_stations_by_genre_or_bitrate_sync(genre_id=genre_id)
+                    stations = self.shoutcast_radio.get_stations_by_genre_or_bitrate_sync(
+                        genre_id=genre_id)
                     if not stations:
-                        stations_list_view.append(ListItem(Label("No stations found.")))
+                        stations_list_view.append(
+                            ListItem(Label("No stations found.")))
                         return
-                    
+
                     for station in stations:
-                        station_name = self._sanitize_station_name(station["name"])
+                        station_name = self._sanitize_station_name(
+                            station["name"])
                         station_id = f"station-{station["id"]}"
-                        stations_list_view.append(ListItem(Label(station_name, id=station_id)))
+                        stations_list_view.append(
+                            ListItem(Label(station_name, id=station_id)))
                 except Exception as e:
                     logger.error(f"Error loading stations by genre: {e}")
                     self.notify(f"Error loading stations by genre: {str(e)}", severity="error")
@@ -152,9 +183,9 @@ class RadioPage(BaseTemplate):
                     return
 
                 for station in stations:
-                        station_name = self._sanitize_station_name(station["name"])
-                        station_id = f"station-{station["id"]}"
-                        stations_list_view.append(ListItem(Label(station_name, id=station_id)))
+                    station_name = self._sanitize_station_name(station["name"])
+                    station_id = f"station-{station["id"]}"
+                    stations_list_view.append(ListItem(Label(station_name, id=station_id)))
             except Exception as e:
                 stations_list_view.append(ListItem(Label("No stations found.")))
                 self.notify(f"Error loading station", severity="error")
@@ -200,6 +231,7 @@ class RadioPage(BaseTemplate):
         """Sanitize station name by removing problematic characters."""
         # Remove or replace problematic characters
         name = re.sub(r'[\[\]]', '', name)  # Remove square brackets
-        name = re.sub(r'[^\x20-\x7E]', '', name)  # Remove non-printable characters
+        # Remove non-printable characters
+        name = re.sub(r'[^\x20-\x7E]', '', name)
         name = name.strip()
         return name if name else "Unnamed Station"
