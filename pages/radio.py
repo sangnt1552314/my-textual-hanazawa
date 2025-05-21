@@ -72,10 +72,10 @@ class RadioPage(BaseTemplate):
                 welcome_text = pyfiglet.figlet_format(
                     os.getenv('APP_NAME', 'Radio'), font="slant")
                 yield Label(welcome_text, classes="header")
-                with Horizontal(id="now_playing_container"):
-                    yield ListView(
-                        id="playing_station_list"
-                    )
+                with ListView(
+                    id="playing_station_list"
+                ):
+                    yield ListItem(Label("No stations found."))
 
         with Container(id="player_bar"):
             with Horizontal():
@@ -142,23 +142,19 @@ class RadioPage(BaseTemplate):
                     genre = message.item.children[0]
                     genre_id = re.search(r"genre-(\d+)", genre.id).group(1)
 
-                    stations_list_view = self.query_one(
-                        "#playing_station_list", ListView)
+                    stations_list_view = self.query_one("#playing_station_list", ListView)
                     stations_list_view.clear()
 
-                    stations = self.shoutcast_radio.get_stations_by_genre_or_bitrate_sync(
-                        genre_id=genre_id)
+                    stations = self.shoutcast_radio.get_stations_by_genre_or_bitrate_sync(genre_id=genre_id)
+
                     if not stations:
-                        stations_list_view.append(
-                            ListItem(Label("No stations found.")))
+                        stations_list_view.append(ListItem(Label("No stations found.")))
                         return
 
                     for station in stations:
-                        station_name = self._sanitize_station_name(
-                            station["name"])
+                        station_name = self._sanitize_station_name(station["name"])
                         station_id = f"station-{station["id"]}"
-                        stations_list_view.append(
-                            ListItem(Label(station_name, id=station_id)))
+                        stations_list_view.append(ListItem(Label(station_name, id=station_id, classes="station-item")))
                 except Exception as e:
                     logger.error(f"Error loading stations by genre: {e}")
                     self.notify(f"Error loading stations by genre: {str(e)}", severity="error")
@@ -185,7 +181,7 @@ class RadioPage(BaseTemplate):
                 for station in stations:
                     station_name = self._sanitize_station_name(station["name"])
                     station_id = f"station-{station["id"]}"
-                    stations_list_view.append(ListItem(Label(station_name, id=station_id)))
+                    stations_list_view.append(ListItem(Label(station_name, id=station_id, classes="station-item")))
             except Exception as e:
                 stations_list_view.append(ListItem(Label("No stations found.")))
                 self.notify(f"Error loading station", severity="error")
