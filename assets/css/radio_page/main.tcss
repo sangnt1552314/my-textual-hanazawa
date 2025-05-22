@@ -92,18 +92,28 @@ Screen {
 }
 
 /* ListView items (tracks) */
-#playing_station_list {
+#playing_station_list, #top_stations_list {
     background: #002635;
     border: none;
     margin: 1;
     padding: 0 0 0 0;
 }
-#playing_station_list > ListItem {
+#playing_station_list, #top_stations_list > ListItem {
     padding: 0 1 0 0;
+    background: #002635; /* soft navy blue */
 }
 
-/* Add these styles to your existing CSS */
+#playing_station_list, #top_stations_list > ListItem:hover {
+    background: #00384D; /* dark blue */
+    color: #FFFFFF;
+}
 
+#playing_station_list, #top_stations_list > ListItem:focus {
+    background: #005C6D; /* even darker blue */
+    color: #FFFFFF;
+}
+
+/* Player bar at the bottom */
 #player_bar {
     dock: bottom;
     height: 3;
