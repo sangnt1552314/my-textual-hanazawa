@@ -9,6 +9,9 @@ A Terminal User Interface (TUI) application built with [Textual](https://textual
 - Simple terminal-based interface for streaming radio
 - Real-time station information display
 
+### Youtube 
+- Browse and listen to youtube
+
 ## Requirements
 
 ```sh
@@ -42,7 +45,8 @@ python main.py
 ### Controls
 - `q`: Quit application
 - `r`: Switch to Radio page
-- `ctrl + s`: Switch to Settings page
+- `y`: Switch to Youtube page 
+- `ctrl + h`: Switch to Settings page
 
 ## Development
 

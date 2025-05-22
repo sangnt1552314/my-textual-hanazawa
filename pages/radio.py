@@ -37,6 +37,11 @@ logger = logging.getLogger(__name__)
 class RadioPage(BaseTemplate):
     CSS_PATH = "../assets/css/radio_page/main.tcss"
 
+    BINDINGS = [
+        ("q", "quit", "Quit"),
+        ("r", "switch_mode('youtube')", "Youtube"),
+    ]
+
     def __init__(self) -> None:
         super().__init__(subtitle="Radio Page")
         self.shoutcast_radio = ShoutcastRadio()
