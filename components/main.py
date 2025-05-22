@@ -1,3 +1,4 @@
+import os
 from textual.app import App
 from textual.binding import Binding
 from pages import (
@@ -12,8 +13,10 @@ class HanazawaApp(App):
         Binding(key="q", action="quit", description="Quit"),
         Binding(key="r", action="switch_mode('radio')", description="Radio"),
         Binding(key="y", action="switch_mode('youtube')", description="Youtube"),
-        Binding(key="ctrl+s", action="switch_mode('settings')", description="Settings"),
+        Binding(key="ctrl+h", action="switch_mode('settings')", description="Settings"),
     ]
+
+    TITLE = os.getenv('APP_NAME', 'HanazawaApp')
 
     MODES = {
         "base": BasePage,
@@ -26,4 +29,4 @@ class HanazawaApp(App):
         super().__init__()
 
     def on_mount(self) -> None:
-        self.switch_mode("base")
+        self.switch_mode("youtube")

@@ -1,0 +1,71 @@
+#youtube_body_container {
+    layout: grid;
+    grid-size: 2;
+    grid-columns: 20% 80%;
+    grid-rows: 1fr;
+    height: 100%;
+}
+
+#youtube_body_container > #youtube_left_pane {
+    width: 100%;
+    height: 100%;
+    color: #f8f8f8;
+    padding: 0;
+}
+
+#youtube_left_pane_list_view {
+    width: 100%;
+    height: 100%;
+    background: #002635;
+    color: #FFFFFF;
+    border: rgb(8, 168, 241);
+}
+
+#youtube_left_pane_list_view > .youtube_left_pane_list_item { 
+     
+}
+
+#youtube_left_pane_list_view > .youtube_left_pane_list_item:hover {
+    
+}
+
+#youtube_left_pane_list_view > .youtube_left_pane_list_item:focus {
+    
+}
+
+#youtube_body_container > #youtube_main_right {
+    width: 100%;
+    height: 100%;
+    border: solid rgb(8, 168, 241);
+    background: #002635;
+}
+
+#youtube_search_container {
+    width: 100%;
+    height: 100%;
+}
+
+#youtube_search_input {
+    background: #002635;
+    color: #FFFFFF;
+    border: solid #00FFFF;
+    height: 3;
+    padding: 0 0 0 0;
+}
+
+#youtube_main_right > #youtube_search_results {
+    width: 100%;
+    height: auto;
+    background: $panel;
+    border: solid $primary;
+}
+
+DataTable > .datatable--header {
+    background: $primary;
+    color: $text;
+}
+
+DataTable > .datatable--cursor {
+    background: $accent;
+    color: $text;
+}
