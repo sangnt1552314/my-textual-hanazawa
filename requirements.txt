@@ -9,3 +9,5 @@ python-vlc
 xmltodict
 pygame
 textual-web
+pytubefix
+google-api-python-client

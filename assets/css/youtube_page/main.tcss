@@ -54,18 +54,49 @@
 }
 
 #youtube_main_right > #youtube_search_results {
-    width: 100%;
+    width: 3;
     height: auto;
-    background: $panel;
+    background: #002635;
     border: solid $primary;
 }
 
-DataTable > .datatable--header {
-    background: $primary;
-    color: $text;
+#youtube_player_bar {
+    dock: bottom;
+    height: 3;
+    background: $boost;
+    # background: #002635;
+    border: solid $primary;
+    padding: 0 1;
+    margin-bottom: 1;
 }
 
-DataTable > .datatable--cursor {
-    background: $accent;
+#youtube_player_bar Horizontal {
+    height: 100%;
+    align: center middle;
+    padding: 0 2;
+}
+
+#youtube_play_pause_button {
+    width: 3;
+    min-width: 3;
+    height: 1;
+    margin: 0 1;
+    background: $primary;
     color: $text;
+    border: none;
+}
+
+#youtube_play_pause_button:hover {
+    background: $primary-darken-1;
+}
+
+#youtube_player_status {
+    color: $text;
+    width: auto;
+    padding-left: 1;
+}
+
+#youtube_current_video {
+    color: $accent;
+    width: auto;
 }

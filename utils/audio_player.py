@@ -116,7 +116,7 @@ class WindowsMediaPlayer(AudioPlayer):
             raise RuntimeError("No player is currently playing.")
 
 
-class ShoutcastRadioPlayer:
+class BasePlayer:
     def __init__(self):
         self.players = []
         self.current_player = None
@@ -160,3 +160,11 @@ class ShoutcastRadioPlayer:
             self.current_player = None
         else:
             raise RuntimeError("No player is currently playing.")
+        
+class ShoutcastRadioPlayer(BasePlayer):
+    def __init__(self):
+        super().__init__()
+
+class YoutubeAudioPlayer(BasePlayer):
+    def __init__(self):
+        super().__init__()
