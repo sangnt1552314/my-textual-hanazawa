@@ -23,6 +23,7 @@ from textual.widgets import (
 )
 from textual.events import Click
 from utils import youtube as yt
+from utils.audio_player import *
 
 logging.basicConfig(
     filename=f"dev.log",
@@ -44,6 +45,12 @@ class YoutubeVideoContainer(Container):
             # yield Static(self.video["ascii_art_thumbnail"], classes="youtube_result_thumbnail")
             yield Static(self.video["title"], classes="youtube_result_title")
             yield Static(f"{self.video["channel_title"]}", classes="youtube_result_metadata")
+
+    # def on_click(self, event: Click) -> None:
+    #     if self.video:
+    #         logger.debug(f"Video clicked: {self.video['watch_url']}")
+    #         audio_player = YoutubeAudioPlayer()
+    #         audio_player.play_stream_url(self.video["watch_url"])
 
 class YoutubePage(BaseTemplate):
     CSS_PATH = "../assets/css/youtube_page/main.tcss"

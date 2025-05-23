@@ -36,6 +36,7 @@ class YoutubeVideoService:
         self.api_key = api_key if api_key else os.getenv("YOUTUBE_API_KEY")
         self.use_google_api = use_google_api
         self.ascii_art_thumbnail_size = 20
+        self.is_debug = False
 
     def search_video(self, query: str, max_results: int = 10, filters: dict = None) -> list:
         """
@@ -96,6 +97,7 @@ class YoutubeVideoService:
                 views = 0  # Placeholder, as views are not available in search results
                 length = 0  # Placeholder, as length is not available in search results
                 ascii_art_thumbnail = image_to_ascii(thumbnails.get("default", {}).get("url", ""), width=self.ascii_art_thumbnail_size)
+                # todo: Add stream_url if needed
                 
                 videos.append({
                     "video_id": video_id,
@@ -112,7 +114,8 @@ class YoutubeVideoService:
                     "ascii_art_thumbnail": ascii_art_thumbnail,
                 })
 
-            logger.debug(f"Search results: {json.dumps(videos, indent=2)}")
+            if self.is_debug:
+                logger.debug(f"Search results: {json.dumps(videos, indent=2)}")
             
             return videos
         
@@ -165,10 +168,12 @@ class YoutubeVideoService:
                 "views": yt_video.views,
                 "length": int(yt_video.length),
                 "ascii_art_thumbnail": image_to_ascii(yt_video.thumbnail_url, width=self.ascii_art_thumbnail_size),
+                # "stream_url": YouTube(yt_video.watch_url).streams.filter(only_audio=True).first().url
                 **channel_data
             })
 
-        logger.debug(f"Search results: {json.dumps(data, indent=2)}")
+        if self.is_debug:
+            logger.debug(f"Search results: {json.dumps(data, indent=2)}")
 
         return data
     
