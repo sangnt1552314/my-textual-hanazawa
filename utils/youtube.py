@@ -1,5 +1,8 @@
 import os
 import logging
+import requests
+from io import BytesIO
+from PIL import Image
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from pytubefix.contrib.search import Search, Filter
@@ -14,11 +17,25 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def image_to_ascii(url, width=40):
+    response = requests.get(url)
+    img = Image.open(BytesIO(response.content))
+    img = img.resize((width, int(img.height * width / img.width)))
+    img = img.convert("L")  # Convert to grayscale
+    pixels = img.getdata()
+    ascii_chars = [" ", ".", ":", "-", "=", "+", "*", "#", "%", "@", "8"]
+    new_pixels = [ascii_chars[pixel // 25] for pixel in pixels]
+    new_image = "".join(
+        ["".join(new_pixels[index : index + width]) + "\n"
+            for index in range(0, len(new_pixels), width)]
+    )
+    return new_image
+
 class YoutubeVideoService:
     def __init__(self, api_key: str = None, use_google_api: bool = True):
         self.api_key = api_key if api_key else os.getenv("YOUTUBE_API_KEY")
-        self.youtube = build("youtube", "v3", developerKey=self.api_key)
         self.use_google_api = use_google_api
+        self.ascii_art_thumbnail_size = 20
 
     def search_video(self, query: str, max_results: int = 10, filters: dict = None) -> list:
         """
@@ -47,6 +64,10 @@ class YoutubeVideoService:
         Returns:
             list: A list of video objects matching the search query.
         """
+        youtube = build("youtube", "v3", developerKey=self.api_key)
+        if not youtube:
+            raise RuntimeError("YouTube API client is not available. Check your API key.")
+
         try:
             search_params = {
                 "q": query,
@@ -58,7 +79,7 @@ class YoutubeVideoService:
             if filters:
                 search_params.update(filters)
 
-            request = self.youtube.search().list(**search_params)
+            request = youtube.search().list(**search_params)
             response = request.execute()
             
             videos = []
@@ -74,6 +95,7 @@ class YoutubeVideoService:
                 embed_url = f"https://www.youtube.com/embed/{video_id}"
                 views = 0  # Placeholder, as views are not available in search results
                 length = 0  # Placeholder, as length is not available in search results
+                ascii_art_thumbnail = image_to_ascii(thumbnails.get("default", {}).get("url", ""), width=self.ascii_art_thumbnail_size)
                 
                 videos.append({
                     "video_id": video_id,
@@ -86,7 +108,8 @@ class YoutubeVideoService:
                     "embed_url": embed_url,
                     "title": title,
                     "views": views,
-                    "length": length
+                    "length": length,
+                    "ascii_art_thumbnail": ascii_art_thumbnail,
                 })
 
             logger.debug(f"Search results: {json.dumps(videos, indent=2)}")
@@ -141,6 +164,7 @@ class YoutubeVideoService:
                 "embed_url": yt_video.embed_url,
                 "views": yt_video.views,
                 "length": int(yt_video.length),
+                "ascii_art_thumbnail": image_to_ascii(yt_video.thumbnail_url, width=self.ascii_art_thumbnail_size),
                 **channel_data
             })
 

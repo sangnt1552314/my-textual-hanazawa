@@ -7,7 +7,8 @@ from textual.containers import (
     Container,
     Horizontal,
     Vertical,
-    VerticalScroll
+    VerticalScroll,
+    Grid,
 )
 from textual.widgets import (
     Input,
@@ -17,7 +18,8 @@ from textual.widgets import (
     Button,
     ListView,
     ListItem,
-    DataTable,
+    Static,
+    Rule
 )
 from textual.events import Click
 from utils import youtube as yt
@@ -30,6 +32,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+class YoutubeVideoContainer(Container):
+    """Container for Youtube video items"""
+    def __init__(self, video) -> None:
+        super().__init__()
+        self.video = video
+        self.classes = "youtube_result_item_container"
+
+    def compose(self) -> ComposeResult:
+        with Container(classes="youtube_result_info"):
+            # yield Static(self.video["ascii_art_thumbnail"], classes="youtube_result_thumbnail")
+            yield Static(self.video["title"], classes="youtube_result_title")
+            yield Static(f"{self.video["channel_title"]}", classes="youtube_result_metadata")
 
 class YoutubePage(BaseTemplate):
     CSS_PATH = "../assets/css/youtube_page/main.tcss"
@@ -42,6 +56,7 @@ class YoutubePage(BaseTemplate):
     def __init__(self) -> None:
         super().__init__(subtitle="Youtube")
         self.youtube_video_service = yt.YoutubeVideoService(use_google_api=True)
+        self.playing_url = None
 
     def compose(self) -> ComposeResult:
         yield Header(
@@ -58,6 +73,12 @@ class YoutubePage(BaseTemplate):
                         id="youtube_left_pane_list_item_trendings",
                         classes="youtube_left_pane_list_item"
                     ),
+                    Rule(line_style="ascii"),
+                    ListItem(
+                        Label("Clear", id="youtube_left_pane_list_item_clear", classes="youtube_left_pane_list_item_label"),
+                        id="youtube_left_pane_list_item_clear",
+                        classes="youtube_left_pane_list_item"
+                    ),
                     id="youtube_left_pane_list_view"
                 )
                     
@@ -67,7 +88,10 @@ class YoutubePage(BaseTemplate):
                         id="youtube_search_input", 
                         tooltip="TBU")
                 
-                    yield DataTable(id="youtube_search_results")
+                    with VerticalScroll(id="youtube_results_container"):
+                        with Grid(id="youtube_results"):
+                            yield Static(f"Hi, there is nothing right now!!!")
+                    
         
         with Container(id="youtube_player_bar"):
             with Horizontal():
@@ -78,15 +102,14 @@ class YoutubePage(BaseTemplate):
         yield Footer()
 
     def on_mount(self) -> None:
-        table = self.query_one("#youtube_search_results", DataTable)
-        table.add_columns("Title", "Channel")
+        pass
 
-    @work(exclusive=True)
-    async def on_input_submitted(self, event: Input.Submitted) -> None:
+    def on_input_submitted(self, event: Input.Submitted):
+        logger.debug("Input submitted")
         """Handle search input submission"""
         search_input = self.query_one("#youtube_search_input", Input)
         search_query = search_input.value.strip()
-        
+
         if search_query:
             videos = self.youtube_video_service.search_video(query=search_query, max_results=10, filters={"order": "viewCount"})
 
@@ -95,21 +118,36 @@ class YoutubePage(BaseTemplate):
                 search_input.value = ""
                 return
             
-            table = self.query_one("#youtube_search_results", DataTable)
-            table.clear()
+            # Clear existing results
+            grid = self.query_one("#youtube_results", Grid)
+            grid.remove_children()
+
             for video in videos:
-                table.add_row(
-                    self.truncate_text(video["title"]),
-                    self.truncate_text(video["channel_title"]),
-                )
+                video_container = YoutubeVideoContainer(video=video)
+                grid.mount(video_container)
 
     def on_list_view_selected(self, message: ListView.Selected) -> None:
         """Handle selection of list view items"""
         selected_item = message.item
+
+        if selected_item.id == "youtube_left_pane_list_item_clear":
+            self.clear_search_results()
     
     def on_click(self, event) -> None:
         if isinstance(event, Click):
             self.lose_search_input_focus(event)
+
+    def clear_search_results(self) -> None:
+        """Clear search results"""
+        self.playing_url = None
+
+        search_input = self.query_one("#youtube_search_input", Input)
+        search_input.value = ""
+        search_input.placeholder = "Search..."
+        
+        grid = self.query_one("#youtube_results", Grid)
+        grid.remove_children()
+        grid.mount(Static("Hi, there is nothing right now!!!"))
 
     def lose_search_input_focus(self, event: Click) -> None:
         search_input = self.query_one("#youtube_search_input", Input)

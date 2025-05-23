@@ -33,6 +33,23 @@
     
 }
 
+#youtube_left_pane_list_view > #youtube_left_pane_list_item_clear {
+    background: #002635;
+    color:rgb(238, 103, 103);
+    border: solid rgb(57, 189, 241);
+    align: center middle;
+}
+
+#youtube_left_pane_list_view > #youtube_left_pane_list_item_clear:hover {
+    background: #00384D; /* dark blue */
+    color: #FFFFFF;
+}
+
+#youtube_left_pane_list_view > #youtube_left_pane_list_item_clear:focus {
+    background: #005C6D; /* even darker blue */
+    color: #FFFFFF;
+}
+
 #youtube_body_container > #youtube_main_right {
     width: 100%;
     height: 100%;
@@ -53,13 +70,60 @@
     padding: 0 0 0 0;
 }
 
-#youtube_main_right > #youtube_search_results {
-    width: 3;
-    height: auto;
-    background: #002635;
-    border: solid $primary;
+#youtube_results_container {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    padding: 1;
 }
 
+#youtube_results_container > #youtube_results {
+    grid-size: 2;  /* Creates 2 columns */
+    grid-gutter: 1;
+    padding: 1;
+    width: 100%;
+    height: auto;
+    background: #002635;
+}
+
+#youtube_results > .youtube_result_item_container {
+    height: auto;
+    min-height: 8;
+    padding: 1;
+    background: $boost;
+    border: solid $primary;
+    layout: horizontal;
+}
+
+#youtube_results > .youtube_result_item_container:hover {
+    background: $primary-darken-1;
+    border: solid $accent;
+}
+
+.youtube_result_item_container > .youtube_result_thumbnail {
+    width: 100%;
+    height: 100%;
+    content-align: center middle;
+    padding: 0 1;
+}
+
+.youtube_result_item_container > .youtube_result_info {
+    width: 70%;
+    height: 100%;
+    padding: 0 1;
+}
+
+.youtube_result_item_container > .youtube_result_title {
+    color: $text;
+    text-style: bold;
+}
+
+.youtube_result_item_container > .youtube_result_metadata {
+    color: $text-muted;
+    text-style: italic;
+}
+
+# Player bar
 #youtube_player_bar {
     dock: bottom;
     height: 3;
