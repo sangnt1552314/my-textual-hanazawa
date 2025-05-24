@@ -1,4 +1,3 @@
-// filepath: d:\Workspace\my-textual-hanazawa\build.py
 import os
 import platform
 import subprocess
