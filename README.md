@@ -67,6 +67,7 @@ This is a learning project for exploring the Textual library's features and capa
 1. Install all requirements:
 ```sh
 pip install -r requirements.txt
+```
 
 ## License
 
