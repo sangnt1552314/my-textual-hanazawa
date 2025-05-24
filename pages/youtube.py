@@ -24,7 +24,7 @@ from textual.widgets import (
     DataTable,
 )
 from textual.events import Click
-from utils import youtube as yt
+from utils.youtube import YoutubeVideoService
 from utils.audio_player import *
 
 logging.basicConfig(
@@ -58,7 +58,7 @@ class YoutubePage(BaseTemplate):
 
     def __init__(self) -> None:
         super().__init__(subtitle="Youtube")
-        self.youtube_video_service = yt.YoutubeVideoService(use_google_api=True)
+        self.youtube_video_service = YoutubeVideoService()
         self.youtube_audio_player = YoutubeAudioPlayer()
         self.youtube_video_result_view_type = 'datatable' # 'container' or 'datatable'
         self.playing_url = None
@@ -69,7 +69,7 @@ class YoutubePage(BaseTemplate):
             show_clock=True,
             id="youtube_header"
         )
-        
+
         with Container(id="youtube_body_container"):
             with VerticalScroll(id="youtube_left_pane"):
                 yield ListView(
@@ -86,20 +86,20 @@ class YoutubePage(BaseTemplate):
                     ),
                     id="youtube_left_pane_list_view"
                 )
-                    
+
             with Horizontal(id="youtube_main_right"):
                 with Vertical(id="youtube_search_container"):
                     yield Input(placeholder="Search...", 
                         id="youtube_search_input", 
                         tooltip="TBU")
-                
+
                     with VerticalScroll(id="youtube_results_container"):
                         if self.youtube_video_result_view_type == 'container':
                             with Grid(id="youtube_container_type_results"):
                                 yield Static("Hi, there is nothing right now!!!")
                         else:
                             yield DataTable(id="youtube_datatable_type_results")
-        
+
         with Container(id="youtube_player_bar"):
             with Horizontal(id="youtube_player_info"):
                 yield Label("Now Playing: ", id="youtube_player_status")
@@ -117,6 +117,8 @@ class YoutubePage(BaseTemplate):
 
     def on_input_submitted(self, event: Input.Submitted):
         """Handle search input submission"""
+        self.clean_container_results()
+
         search_input = self.query_one("#youtube_search_input", Input)
         search_query = search_input.value.strip()
 
@@ -127,7 +129,7 @@ class YoutubePage(BaseTemplate):
                 search_input.placeholder = "No results found"
                 search_input.value = ""
                 return
-            
+
             # Clear existing results
             container_id = "#youtube_container_type_results" if self.youtube_video_result_view_type == 'container' else "#youtube_datatable_type_results"
             container_type = Grid if self.youtube_video_result_view_type == 'container' else DataTable
@@ -167,7 +169,7 @@ class YoutubePage(BaseTemplate):
             row = result_table.get_row_at(event.cursor_row)
             video_title = row[0].plain
             video_id = event.row_key.value
-            audio_url = self.youtube_video_service.build_stream_audio_url(video_id=video_id)
+            audio_url = self.youtube_video_service.get_video_audio_url(video_id=video_id)
 
             if audio_url:
                 self.playing_url = audio_url
@@ -195,7 +197,10 @@ class YoutubePage(BaseTemplate):
         search_input = self.query_one("#youtube_search_input", Input)
         search_input.value = ""
         search_input.placeholder = "Search..."
-        
+
+        self.clean_container_results()
+
+    def clean_container_results(self) -> None:
         container_id = "#youtube_container_type_results" if self.youtube_video_result_view_type == 'container' else "#youtube_datatable_type_results"
         container_type = Grid if self.youtube_video_result_view_type == 'container' else DataTable
         container = self.query_one(container_id, container_type)
@@ -207,7 +212,7 @@ class YoutubePage(BaseTemplate):
 
     def lose_search_input_focus(self, event: Click) -> None:
         search_input = self.query_one("#youtube_search_input", Input)
-        
+
         if event.widget.id != "youtube_search_input":
             search_input.blur()
             self.set_focus(event.widget)
@@ -215,7 +220,7 @@ class YoutubePage(BaseTemplate):
     def truncate_text(self, text: str, max_length: int = 50) -> str:
         """Truncate text if longer than max_length"""
         return text if len(text) <= max_length else text[:max_length - 3] + "..."
-    
+
     def convert_length(self, length: int) -> str:
         """Convert length to a more readable format"""
         if length < 60:

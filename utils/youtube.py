@@ -1,13 +1,14 @@
 import os
 import logging
 import requests
+import json
 from io import BytesIO
 from PIL import Image
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from pytubefix.contrib.search import Search, Filter
 from pytubefix import YouTube, Channel
-import json
+import yt_dlp
 
 logging.basicConfig(
     filename=f"dev.log",
@@ -31,42 +32,44 @@ def image_to_ascii(url, width=40):
     )
     return new_image
 
-class YoutubeVideoService:
-    def __init__(self, api_key: str = None, use_google_api: bool = True):
-        self.api_key = api_key if api_key else os.getenv("YOUTUBE_API_KEY")
-        self.use_google_api = use_google_api
-        self.ascii_art_thumbnail_size = 20
-        self.is_debug = False
+class BaseYoutubeService:
+    def __init__(self, is_debug: bool = False):
+        self.is_debug = is_debug
 
     def search_video(self, query: str, max_results: int = 10, filters: dict = None) -> list:
         """
-        Search for videos on YouTube using the Google API or pytubefix library.
-        
+        Search for videos on YouTube.
+
         Args:
             query (str): The search query.
             max_results (int): The maximum number of results to return.
-            
+
         Returns:
             list: A list of video objects matching the search query.
         """
-        if self.api_key and self.use_google_api:
-            return self.search_video_googleapiclient(query=query, max_results=max_results, filters=filters)
-        
-        return self.search_video_pytube(query=query, max_results=max_results, filters=filters)
+        raise NotImplementedError("This method should be implemented by subclasses.")
 
-    def search_video_googleapiclient(self, query: str, max_results: int = 10, filters: dict = None) -> list:
+
+class YoutubeServiceGoogleAPIClient(BaseYoutubeService):
+    def __init__(self, api_key: str = None, is_debug: bool = False):
+        self.api_key = api_key if api_key else os.getenv("YOUTUBE_API_KEY")
+        if not self.api_key:
+            raise ValueError("YouTube API key is required")
+        self.is_debug = is_debug
+        self.youtube_build = build("youtube", "v3", developerKey=self.api_key)
+
+    def search_video(self, query: str, max_results: int = 10, filters: dict = None) -> list:
         """
         Search for videos on YouTube using the Google API.
-        
+
         Args:
             query (str): The search query.
             max_results (int): The maximum number of results to return.
-            
+
         Returns:
             list: A list of video objects matching the search query.
         """
-        youtube = build("youtube", "v3", developerKey=self.api_key)
-        if not youtube:
+        if not self.youtube_build:
             raise RuntimeError("YouTube API client is not available. Check your API key.")
 
         try:
@@ -80,9 +83,9 @@ class YoutubeVideoService:
             if filters:
                 search_params.update(filters)
 
-            request = youtube.search().list(**search_params)
+            request = self.youtube_build.search().list(**search_params)
             response = request.execute()
-            
+
             videos = []
 
             for item in response.get("items", []):
@@ -96,8 +99,7 @@ class YoutubeVideoService:
                 embed_url = f"https://www.youtube.com/embed/{video_id}"
                 views = 0  # Placeholder, as views are not available in search results
                 length = 0  # Placeholder, as length is not available in search results
-                ascii_art_thumbnail = image_to_ascii(thumbnails.get("default", {}).get("url", ""), width=self.ascii_art_thumbnail_size)
-                
+
                 videos.append({
                     "video_id": video_id,
                     "title": title,
@@ -110,30 +112,34 @@ class YoutubeVideoService:
                     "title": title,
                     "views": views,
                     "length": length,
-                    "ascii_art_thumbnail": ascii_art_thumbnail,
                 })
 
             if self.is_debug:
                 logger.debug(f"Search results: {json.dumps(videos, indent=2)}")
-            
+
             return videos
-        
+
         except HttpError as e:
-            print(f"An error occurred: {e}")
+            logger.error(f"An error occurred in YoutubeVideoGoogleAPIClient: {e}")
             return []
 
-    def search_video_pytube(self, query: str, max_results: int = 10, filters: dict = None) -> list:
+
+class YoutubeServicePyTube(BaseYoutubeService):
+    def __init__(self, is_debug: bool = False):
+        self.is_debug = is_debug
+
+    def search_video(self, query: str, max_results: int = 10, filters: dict = None) -> list:
         """
         Search for videos on YouTube using the pytubefix library.
-        
+
         Args:
             query (str): The search query.
             max_results (int): The maximum number of results to return.
-            
+
         Returns:
             list: A list of video objects matching the search query.
         """
-        s = Search(query, filters=self.build_filters_pytube(filters))
+        s = Search(query, filters=self.build_filters(filters))
         videos = s.videos
         videos = videos[:max_results]
 
@@ -151,7 +157,7 @@ class YoutubeVideoService:
                 channel_data = {
                     "channel_title": "",
                 }
-            
+
             data.append({
                 "video_id": yt_video.video_id,
                 "title": yt_video.title,
@@ -166,7 +172,6 @@ class YoutubeVideoService:
                 "embed_url": yt_video.embed_url,
                 "views": yt_video.views,
                 "length": int(yt_video.length),
-                "ascii_art_thumbnail": image_to_ascii(yt_video.thumbnail_url, width=self.ascii_art_thumbnail_size),
                 **channel_data
             })
 
@@ -174,28 +179,104 @@ class YoutubeVideoService:
             logger.debug(f"Search results: {json.dumps(data, indent=2)}")
 
         return data
-    
-    def build_stream_audio_url_ytdlp(self, video_id: str) -> str:
+
+    def get_video_audio_url(self, video_id: str) -> str:
         """
-        Build the stream URL for a YouTube video using yt-dlp.
-        
+        Build the stream URL for a YouTube video using pytubefix.
+
         Args:
             video_id (str): The ID of the YouTube video.
-            
+
+        Returns:
+            str: The stream URL for the video.
+        """
+        yt_video = YouTube(url=f"https://www.youtube.com/watch?v={video_id}")
+
+        if not yt_video:
+            raise RuntimeError("YouTube video is not available. Check the video ID.")
+
+        stream = yt_video.streams.filter(only_audio=True).first()
+
+        if not stream:
+            raise RuntimeError("No audio stream available for this video.")
+
+        return stream.url
+
+    def build_filters(self, filters: dict) -> dict:
+        """
+        Build filters for pytubefix search.
+
+        Args:
+            filters (dict): A dictionary of filters to apply.
+
+        Returns:
+            list: A list of Filter objects.
+        """
+        processed_filter = {}
+
+        #TODO: Add more filters and build later
+
+        return processed_filter
+
+
+class YoutubeServiceYTDLP(BaseYoutubeService):
+    def __init__(self, is_debug: bool = False):
+        self.is_debug = is_debug
+
+    def search_video(self, query: str, max_results: int = 10, filters: dict = None) -> list:
+        """
+        Search for videos on YouTube using yt-dlp.
+
+        Args:
+            query (str): The search query.
+            max_results (int): The maximum number of results to return.
+
+        Returns:
+            list: A list of video objects matching the search query.
+        """
+
+        ydl_opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'extract_flat': True,
+            'default_search': 'ytsearch',
+            'max_downloads': max_results,
+        }
+
+        if filters:
+            ydl_opts.update(filters)
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            try:
+                result = ydl.extract_info(query, download=False)
+                if 'entries' in result:
+                    return result['entries']
+                else:
+                    return [result]
+            except Exception as e:
+                logger.error(f"Error searching videos with yt-dlp: {str(e)}")
+                return []
+
+    def get_video_audio_url(self, video_id: str) -> str:
+        """
+        Build the stream URL for a YouTube video using yt-dlp.
+
+        Args:
+            video_id (str): The ID of the YouTube video.
+
         Returns:
             str: The direct audio stream URL for the video.
         """
-        import yt_dlp
 
         url = f"https://www.youtube.com/watch?v={video_id}"
-        
+
         ydl_opts = {
             'format': 'bestaudio',
             'quiet': True,
             'no_warnings': True,
             'extract_flat': True,
         }
-        
+
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
@@ -206,80 +287,57 @@ class YoutubeVideoService:
         except Exception as e:
             logger.error(f"Error getting audio URL with yt-dlp: {str(e)}")
             raise RuntimeError(f"Failed to get audio URL: {str(e)}")
-    
-    def build_stream_audio_url_pytube(self, video_id: str) -> str:
+
+
+class YoutubeVideoService(BaseYoutubeService):
+    def __init__(self, is_debug: bool = False):
+        self.is_debug = is_debug
+        self.services = []
+
+        # Initialize services
+        self.services.append(YoutubeServiceGoogleAPIClient(is_debug=self.is_debug))
+        self.services.append(YoutubeServicePyTube(is_debug=self.is_debug))
+        self.services.append(YoutubeServiceYTDLP(is_debug=self.is_debug))
+
+    def search_video(self, query: str, max_results: int = 10, filters: dict = None) -> list:
         """
-        Build the stream URL for a YouTube video using pytubefix.
-        
+        Search for videos on YouTube using the Google API or pytubefix library.
+
         Args:
-            video_id (str): The ID of the YouTube video.
-            
+            query (str): The search query.
+            max_results (int): The maximum number of results to return.
+
         Returns:
-            str: The stream URL for the video.
+            list: A list of video objects matching the search query.
         """
-        yt_video = YouTube(url=f"https://www.youtube.com/watch?v={video_id}")
+        for service in self.services:
+            try:
+                return service.search_video(query, max_results, filters)
+            except Exception as e:
+                logger.error(f"Error searching videos with {service.__class__.__name__}: {str(e)}")
+                continue
+        raise RuntimeError("All services failed to search videos.")
 
-        if not yt_video:
-            raise RuntimeError("YouTube video is not available. Check the video ID.")
-        
-        stream = yt_video.streams.filter(only_audio=True).first()
 
-        if not stream:
-            raise RuntimeError("No audio stream available for this video.")
-        
-        return stream.url
-    
-    def build_stream_audio_url(self, video_id: str, prefer_ytdlp: bool = True) -> str:
+    def get_video_audio_url(self, video_id: str) -> str:
         """
-        Build the stream URL for a YouTube video using either yt-dlp or pytubefix.
+        Build the audio URL for a YouTube video.
         Will try the preferred method first, then fall back to the other if it fails.
-        
+
         Args:
             video_id (str): The ID of the YouTube video.
-            prefer_ytdlp (bool): Whether to try yt-dlp first (True) or pytubefix first (False)
-            
+
         Returns:
             str: The direct audio stream URL for the video.
-            
+
         Raises:
             RuntimeError: If both methods fail to get the audio URL.
         """
-        errors = []
-        
-        methods = [
-            (self.build_stream_audio_url_ytdlp, "yt-dlp"),
-            (self.build_stream_audio_url_pytube, "pytubefix")
-        ]
-        
-        # Reorder methods based on preference
-        if not prefer_ytdlp:
-            methods.reverse()
-        
-        for method, name in methods:
-            try:
-                logger.debug(f"Attempting to get audio URL using {name}")
-                return method(video_id)
-            except Exception as e:
-                error_msg = f"{name} failed: {str(e)}"
-                logger.warning(error_msg)
-                errors.append(error_msg)
-        
-        # If we get here, both methods failed
-        error_details = "\n".join(errors)
-        raise RuntimeError(f"Failed to get audio URL using all available methods:\n{error_details}")
-    
-    def build_filters_pytube(self, filters: dict) -> dict:
-        """
-        Build filters for pytubefix search.
-        
-        Args:
-            filters (dict): A dictionary of filters to apply.
-            
-        Returns:
-            list: A list of Filter objects.
-        """
-        processed_filter = {}
 
-        #TODO: Add more filters and build later
-        
-        return processed_filter
+        for service in self.services:
+            try:
+                return service.get_video_audio_url(video_id)
+            except Exception as e:
+                logger.error(f"Error getting audio URL with {service.__class__.__name__}: {str(e)}")
+                continue
+        raise RuntimeError("All services failed to get audio URL.")
