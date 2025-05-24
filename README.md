@@ -68,6 +68,11 @@ This is a learning project for exploring the Textual library's features and capa
 ```sh
 pip install -r requirements.txt
 ```
+2. Run the build script:
+```sh
+python build.py
+```
+3. The packaged application will be available in the release directory as a zip file.
 
 ## License
 
