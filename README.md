@@ -9,8 +9,8 @@ A Terminal User Interface (TUI) application built with [Textual](https://textual
 - Simple terminal-based interface for streaming radio
 - Real-time station information display
 
-### Youtube 
-- Browse and listen to youtube
+### Youtube Audio Play
+- Browse and listen to Youtube
 
 ## Requirements
 
@@ -31,7 +31,8 @@ Key dependencies:
 2. Copy `.env.example` to `.env`
 3. Add your Shoutcast API key to `.env`:
 ```
-SHOUTCAST_API_KEY=your_api_key_here
+SHOUTCAST_API_KEY=your_shoutcast_api_key_here
+YOUTUBE_API_KEY=your_youtube_api_key_here
 ```
 
 ## Usage
@@ -50,7 +51,9 @@ python main.py
 
 ## Development
 
-This is a learning project for exploring the Textual library's features and capabilities. The first implementation focuses on creating a radio player interface using Shoutcast's API.
+This is a learning project for exploring the Textual library's features and capabilities. 
+- The first implementation focuses on creating a radio player interface using Shoutcast's API.
+- The second feature focuses on creating a audio player interface for Youtube
 
 ## License
 
