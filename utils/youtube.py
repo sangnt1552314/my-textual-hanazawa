@@ -97,7 +97,6 @@ class YoutubeVideoService:
                 views = 0  # Placeholder, as views are not available in search results
                 length = 0  # Placeholder, as length is not available in search results
                 ascii_art_thumbnail = image_to_ascii(thumbnails.get("default", {}).get("url", ""), width=self.ascii_art_thumbnail_size)
-                # todo: Add stream_url if needed
                 
                 videos.append({
                     "video_id": video_id,
@@ -168,7 +167,6 @@ class YoutubeVideoService:
                 "views": yt_video.views,
                 "length": int(yt_video.length),
                 "ascii_art_thumbnail": image_to_ascii(yt_video.thumbnail_url, width=self.ascii_art_thumbnail_size),
-                # "stream_url": YouTube(yt_video.watch_url).streams.filter(only_audio=True).first().url
                 **channel_data
             })
 
@@ -176,6 +174,99 @@ class YoutubeVideoService:
             logger.debug(f"Search results: {json.dumps(data, indent=2)}")
 
         return data
+    
+    def build_stream_audio_url_ytdlp(self, video_id: str) -> str:
+        """
+        Build the stream URL for a YouTube video using yt-dlp.
+        
+        Args:
+            video_id (str): The ID of the YouTube video.
+            
+        Returns:
+            str: The direct audio stream URL for the video.
+        """
+        import yt_dlp
+
+        url = f"https://www.youtube.com/watch?v={video_id}"
+        
+        ydl_opts = {
+            'format': 'bestaudio',
+            'quiet': True,
+            'no_warnings': True,
+            'extract_flat': True,
+        }
+        
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                if 'url' in info:
+                    return info['url']
+                else:
+                    raise RuntimeError("Could not extract audio URL from video")
+        except Exception as e:
+            logger.error(f"Error getting audio URL with yt-dlp: {str(e)}")
+            raise RuntimeError(f"Failed to get audio URL: {str(e)}")
+    
+    def build_stream_audio_url_pytube(self, video_id: str) -> str:
+        """
+        Build the stream URL for a YouTube video using pytubefix.
+        
+        Args:
+            video_id (str): The ID of the YouTube video.
+            
+        Returns:
+            str: The stream URL for the video.
+        """
+        yt_video = YouTube(url=f"https://www.youtube.com/watch?v={video_id}")
+
+        if not yt_video:
+            raise RuntimeError("YouTube video is not available. Check the video ID.")
+        
+        stream = yt_video.streams.filter(only_audio=True).first()
+
+        if not stream:
+            raise RuntimeError("No audio stream available for this video.")
+        
+        return stream.url
+    
+    def build_stream_audio_url(self, video_id: str, prefer_ytdlp: bool = True) -> str:
+        """
+        Build the stream URL for a YouTube video using either yt-dlp or pytubefix.
+        Will try the preferred method first, then fall back to the other if it fails.
+        
+        Args:
+            video_id (str): The ID of the YouTube video.
+            prefer_ytdlp (bool): Whether to try yt-dlp first (True) or pytubefix first (False)
+            
+        Returns:
+            str: The direct audio stream URL for the video.
+            
+        Raises:
+            RuntimeError: If both methods fail to get the audio URL.
+        """
+        errors = []
+        
+        methods = [
+            (self.build_stream_audio_url_ytdlp, "yt-dlp"),
+            (self.build_stream_audio_url_pytube, "pytubefix")
+        ]
+        
+        # Reorder methods based on preference
+        if not prefer_ytdlp:
+            methods.reverse()
+        
+        for method, name in methods:
+            try:
+                logger.debug(f"Attempting to get audio URL using {name}")
+                return method(video_id)
+            except Exception as e:
+                error_msg = f"{name} failed: {str(e)}"
+                logger.warning(error_msg)
+                errors.append(error_msg)
+        
+        # If we get here, both methods failed
+        error_details = "\n".join(errors)
+        raise RuntimeError(f"Failed to get audio URL using all available methods:\n{error_details}")
     
     def build_filters_pytube(self, filters: dict) -> dict:
         """

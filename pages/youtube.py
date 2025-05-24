@@ -1,5 +1,6 @@
 import os
 import logging
+from rich.text import Text
 from textual import work
 from templates import BaseTemplate
 from textual.app import ComposeResult
@@ -19,7 +20,8 @@ from textual.widgets import (
     ListView,
     ListItem,
     Static,
-    Rule
+    Rule,
+    DataTable,
 )
 from textual.events import Click
 from utils import youtube as yt
@@ -46,12 +48,6 @@ class YoutubeVideoContainer(Container):
             yield Static(self.video["title"], classes="youtube_result_title")
             yield Static(f"{self.video["channel_title"]}", classes="youtube_result_metadata")
 
-    # def on_click(self, event: Click) -> None:
-    #     if self.video:
-    #         logger.debug(f"Video clicked: {self.video['watch_url']}")
-    #         audio_player = YoutubeAudioPlayer()
-    #         audio_player.play_stream_url(self.video["watch_url"])
-
 class YoutubePage(BaseTemplate):
     CSS_PATH = "../assets/css/youtube_page/main.tcss"
 
@@ -63,6 +59,8 @@ class YoutubePage(BaseTemplate):
     def __init__(self) -> None:
         super().__init__(subtitle="Youtube")
         self.youtube_video_service = yt.YoutubeVideoService(use_google_api=True)
+        self.youtube_audio_player = YoutubeAudioPlayer()
+        self.youtube_video_result_view_type = 'datatable' # 'container' or 'datatable'
         self.playing_url = None
 
     def compose(self) -> ComposeResult:
@@ -96,23 +94,28 @@ class YoutubePage(BaseTemplate):
                         tooltip="TBU")
                 
                     with VerticalScroll(id="youtube_results_container"):
-                        with Grid(id="youtube_results"):
-                            yield Static(f"Hi, there is nothing right now!!!")
-                    
+                        if self.youtube_video_result_view_type == 'container':
+                            with Grid(id="youtube_container_type_results"):
+                                yield Static("Hi, there is nothing right now!!!")
+                        else:
+                            yield DataTable(id="youtube_datatable_type_results")
         
         with Container(id="youtube_player_bar"):
-            with Horizontal():
-                yield Button("⏵", id="youtube_play_pause_button", variant="primary", disabled=True)
+            with Horizontal(id="youtube_player_info"):
                 yield Label("Now Playing: ", id="youtube_player_status")
                 yield Label("No Video Selected", id="youtube_current_video")
+            with Horizontal(id="youtube_player_controls"):
+                yield Button("P", id="youtube_play_pause_button", variant="primary", disabled=True)
 
         yield Footer()
 
     def on_mount(self) -> None:
-        pass
+        result_datatable = self.query_one("#youtube_datatable_type_results", DataTable)
+        result_datatable.cursor_type = "row"
+        result_datatable.add_column("Title", width=40)
+        result_datatable.add_column("Channel", width=20)
 
     def on_input_submitted(self, event: Input.Submitted):
-        logger.debug("Input submitted")
         """Handle search input submission"""
         search_input = self.query_one("#youtube_search_input", Input)
         search_query = search_input.value.strip()
@@ -126,12 +129,22 @@ class YoutubePage(BaseTemplate):
                 return
             
             # Clear existing results
-            grid = self.query_one("#youtube_results", Grid)
-            grid.remove_children()
+            container_id = "#youtube_container_type_results" if self.youtube_video_result_view_type == 'container' else "#youtube_datatable_type_results"
+            container_type = Grid if self.youtube_video_result_view_type == 'container' else DataTable
+            container = self.query_one(container_id, container_type)
+            container.remove_children()
 
             for video in videos:
-                video_container = YoutubeVideoContainer(video=video)
-                grid.mount(video_container)
+                if self.youtube_video_result_view_type == 'container':
+                    video_container = YoutubeVideoContainer(video=video)
+                    container.mount(video_container)
+
+                if self.youtube_video_result_view_type == 'datatable':
+                    styled_row = [
+                        Text(self.truncate_text(video["title"], 50), style="italic #03AC13", justify="left"),
+                        Text(self.truncate_text(video["channel_title"], 20), style="italic #03AC13", justify="left")
+                    ]
+                    container.add_row(*styled_row, key=video["video_id"])
 
     def on_list_view_selected(self, message: ListView.Selected) -> None:
         """Handle selection of list view items"""
@@ -139,10 +152,41 @@ class YoutubePage(BaseTemplate):
 
         if selected_item.id == "youtube_left_pane_list_item_clear":
             self.clear_search_results()
-    
+
     def on_click(self, event) -> None:
         if isinstance(event, Click):
             self.lose_search_input_focus(event)
+
+        if isinstance(event, YoutubeVideoContainer):
+            pass
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Handle row selection in the DataTable"""
+        result_table = self.query_one("#youtube_datatable_type_results", DataTable)
+        if result_table is not None and event.row_key is not None:
+            row = result_table.get_row_at(event.cursor_row)
+            video_title = row[0].plain
+            video_id = event.row_key.value
+            audio_url = self.youtube_video_service.build_stream_audio_url(video_id=video_id)
+
+            if audio_url:
+                self.playing_url = audio_url
+                play_pause_button = self.query_one("#youtube_play_pause_button", Button)
+                play_pause_button.disabled = False
+                play_pause_button.label = "S"
+                self.query_one("#youtube_current_video", Label).update(f"{video_title}")
+
+                # Play the audio
+                self.youtube_audio_player.play_stream_url(audio_url)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "youtube_play_pause_button":
+            if self.youtube_audio_player.is_playing:
+                self.youtube_audio_player.stop()
+                event.button.label = "P"
+            else:
+                self.youtube_audio_player.play_stream_url(self.playing_url)
+                event.button.label = "S"
 
     def clear_search_results(self) -> None:
         """Clear search results"""
@@ -152,9 +196,14 @@ class YoutubePage(BaseTemplate):
         search_input.value = ""
         search_input.placeholder = "Search..."
         
-        grid = self.query_one("#youtube_results", Grid)
-        grid.remove_children()
-        grid.mount(Static("Hi, there is nothing right now!!!"))
+        container_id = "#youtube_container_type_results" if self.youtube_video_result_view_type == 'container' else "#youtube_datatable_type_results"
+        container_type = Grid if self.youtube_video_result_view_type == 'container' else DataTable
+        container = self.query_one(container_id, container_type)
+
+        if isinstance(container, DataTable):
+            container.clear()
+        elif isinstance(container, Grid):
+            container.remove_children()
 
     def lose_search_input_focus(self, event: Click) -> None:
         search_input = self.query_one("#youtube_search_input", Input)

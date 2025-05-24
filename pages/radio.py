@@ -230,9 +230,7 @@ class RadioPage(BaseTemplate):
 
     def _sanitize_station_name(self, name: str) -> str:
         """Sanitize station name by removing problematic characters."""
-        # Remove or replace problematic characters
         name = re.sub(r'[\[\]]', '', name)  # Remove square brackets
-        # Remove non-printable characters
-        name = re.sub(r'[^\x20-\x7E]', '', name)
+        name = re.sub(r'[^\x20-\x7E]', '', name) # Remove non-printable characters
         name = name.strip()
         return name if name else "Unnamed Station"

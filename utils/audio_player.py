@@ -49,6 +49,10 @@ class VLCPlayer(AudioPlayer):
             self.player.stop()
             self.player.release()
             self.player = None
+    
+    def pause(self) -> None:
+        if self.player:
+            self.player.pause()
 
 
 class WindowsMediaPlayer(AudioPlayer):
@@ -114,6 +118,14 @@ class WindowsMediaPlayer(AudioPlayer):
             self.player_thread = None
         else:
             raise RuntimeError("No player is currently playing.")
+        
+    def pause(self) -> None:
+        """Windows Media Player does not support pause via command line, so this is a no-op."""
+        if self.player_process:
+            # No direct way to pause WMP from command line
+            pass
+        else:
+            raise RuntimeError("No player is currently playing.")
 
 
 class BasePlayer:
@@ -161,9 +173,18 @@ class BasePlayer:
         else:
             raise RuntimeError("No player is currently playing.")
         
+    def pause(self) -> None:
+        """Pause the current player."""
+        if self.current_player:
+            self.current_player.pause()
+        else:
+            raise RuntimeError("No player is currently playing.")
+
+
 class ShoutcastRadioPlayer(BasePlayer):
     def __init__(self):
         super().__init__()
+
 
 class YoutubeAudioPlayer(BasePlayer):
     def __init__(self):
