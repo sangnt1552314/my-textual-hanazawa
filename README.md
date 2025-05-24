@@ -55,6 +55,19 @@ This is a learning project for exploring the Textual library's features and capa
 - The first implementation focuses on creating a radio player interface using Shoutcast's API.
 - The second feature focuses on creating a audio player interface for Youtube
 
+## Building from Source
+
+### Prerequisites
+- Python 3.10 or higher
+- VLC media player installed (for audio playback)
+- PyInstaller (`pip install pyinstaller`)
+
+### Build Process
+
+1. Install all requirements:
+```sh
+pip install -r requirements.txt
+
 ## License
 
 MIT License - See [LICENSE](LICENSE) for details

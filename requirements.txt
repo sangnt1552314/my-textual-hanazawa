@@ -12,3 +12,4 @@ textual-web
 pytubefix
 google-api-python-client
 yt-dlp
+pyinstaller
