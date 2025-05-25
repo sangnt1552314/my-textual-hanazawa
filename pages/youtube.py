@@ -1,7 +1,6 @@
 import os
 import logging
 from rich.text import Text
-from textual import work
 from templates import BaseTemplate
 from textual.app import ComposeResult
 from textual.containers import (
@@ -44,7 +43,6 @@ class YoutubeVideoContainer(Container):
 
     def compose(self) -> ComposeResult:
         with Container(classes="youtube_result_info"):
-            # yield Static(self.video["ascii_art_thumbnail"], classes="youtube_result_thumbnail")
             yield Static(self.video["title"], classes="youtube_result_title")
             yield Static(f"{self.video["channel_title"]}", classes="youtube_result_metadata")
 
@@ -55,6 +53,8 @@ class YoutubePage(BaseTemplate):
         ("q", "quit", "Quit"),
         ("r", "switch_mode('radio')", "Radio"),
     ]
+
+    AUTO_FOCUS = None
 
     def __init__(self) -> None:
         super().__init__(subtitle="Youtube")
