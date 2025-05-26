@@ -18,6 +18,7 @@ class VLCPlayer(AudioPlayer):
     def __init__(self):
         self.player = None
         self.instance = None
+        self.is_paused = False
         try:
             import vlc
             import platform
@@ -43,16 +44,37 @@ class VLCPlayer(AudioPlayer):
         media = self.instance.media_new(url)
         self.player.set_media(media)
         self.player.play()
+        self.is_paused = False
 
     def stop(self) -> None:
         if self.player:
             self.player.stop()
             self.player.release()
             self.player = None
+            self.is_paused = False
     
     def pause(self) -> None:
         if self.player:
             self.player.pause()
+            self.is_paused = True
+
+    def resume(self) -> None:
+        if self.player and self.is_paused:
+            self.player.play()
+            self.is_paused = False
+
+    def get_time(self) -> int:
+        """Get current playback time in seconds"""
+        if self.player:
+            time_ms = self.player.get_time()
+            return int(time_ms / 1000) if time_ms >= 0 else 0
+        return 0
+
+    def is_playing(self) -> bool:
+        """Check if player is currently playing"""
+        if self.player:
+            return self.player.is_playing()
+        return False
 
 
 class WindowsMediaPlayer(AudioPlayer):
@@ -133,6 +155,7 @@ class BasePlayer:
         self.players = []
         self.current_player = None
         self.is_playing = False
+        self.is_paused = False
 
         vlc_player = VLCPlayer()
         if vlc_player.is_available:
@@ -157,6 +180,7 @@ class BasePlayer:
                 player.play_stream_url(url)
                 self.current_player = player
                 self.is_playing = True
+                self.is_paused = False
                 return
             except Exception as e:
                 continue
@@ -166,6 +190,7 @@ class BasePlayer:
     def stop(self) -> None:
         """Stop the current player."""
         self.is_playing = False
+        self.is_paused = False
 
         if self.current_player:
             self.current_player.stop()
@@ -177,8 +202,25 @@ class BasePlayer:
         """Pause the current player."""
         if self.current_player:
             self.current_player.pause()
+            self.is_paused = True
+            self.is_playing = False
         else:
             raise RuntimeError("No player is currently playing.")
+
+    def resume(self) -> None:
+        """Resume playback from pause."""
+        if self.current_player and self.is_paused:
+            self.current_player.resume()
+            self.is_paused = False
+            self.is_playing = True
+        else:
+            raise RuntimeError("No paused player to resume.")
+
+    def get_current_time(self) -> int:
+        """Get current playback time in seconds."""
+        if self.current_player and isinstance(self.current_player, VLCPlayer):
+            return self.current_player.get_time()
+        return 0
 
 
 class ShoutcastRadioPlayer(BasePlayer):

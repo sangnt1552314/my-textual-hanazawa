@@ -201,6 +201,13 @@ class YoutubeServicePyTube(BaseYoutubeService):
             raise RuntimeError("No audio stream available for this video.")
 
         return stream.url
+    
+    def get_video_duration(self, video_id: str) -> int:
+        """
+        Get the duration of a video in seconds.
+        """
+        yt_video = YouTube(url=f"https://www.youtube.com/watch?v={video_id}")
+        return int(yt_video.length)
 
     def build_filters(self, filters: dict) -> dict:
         """
@@ -257,15 +264,17 @@ class YoutubeServiceYTDLP(BaseYoutubeService):
                 logger.error(f"Error searching videos with yt-dlp: {str(e)}")
                 return []
 
-    def get_video_audio_url(self, video_id: str) -> str:
+    def get_video_audio_url(self, video_id: str, start_time: int = None, end_time: int = None) -> str:
         """
-        Build the stream URL for a YouTube video using yt-dlp.
+        Build the stream URL for a YouTube video using yt-dlp, optionally with time constraints.
 
         Args:
             video_id (str): The ID of the YouTube video.
+            start_time (int, optional): Start time in seconds.
+            end_time (int, optional): End time in seconds.
 
         Returns:
-            str: The direct audio stream URL for the video.
+            str: The direct audio stream URL for the video, with time constraints if specified.
         """
 
         url = f"https://www.youtube.com/watch?v={video_id}"
@@ -277,16 +286,58 @@ class YoutubeServiceYTDLP(BaseYoutubeService):
             'extract_flat': True,
         }
 
+        # Add timestamp constraints if provided
+        if start_time is not None or end_time is not None:
+            download_range = ''
+            if start_time is not None:
+                download_range += str(start_time)
+            download_range += '-'
+            if end_time is not None:
+                download_range += str(end_time)
+            
+            ydl_opts.update({
+                'download_ranges': lambda info: [[download_range]],
+                'force_keyframes_at_cuts': True,
+            })
+
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
                 if 'url' in info:
-                    return info['url']
+                    base_url = info['url']
+                    # Add timestamp parameters to URL if specified
+                    if start_time is not None:
+                        base_url += f"&begin={start_time}"
+                    return base_url
                 else:
                     raise RuntimeError("Could not extract audio URL from video")
         except Exception as e:
             logger.error(f"Error getting audio URL with yt-dlp: {str(e)}")
             raise RuntimeError(f"Failed to get audio URL: {str(e)}")
+
+    def get_video_duration(self, video_id: str) -> int:
+        """
+        Get the duration of a video in seconds.
+
+        Args:
+            video_id (str): The ID of the YouTube video.
+
+        Returns:
+            int: Duration of the video in seconds.
+        """
+        url = f"https://www.youtube.com/watch?v={video_id}"
+        ydl_opts = {
+            'quiet': True,
+            'no_warnings': True,
+        }
+
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                return info.get('duration', 0)
+        except Exception as e:
+            logger.error(f"Error getting video duration: {str(e)}")
+            return 0
 
 
 class YoutubeVideoService(BaseYoutubeService):
@@ -296,8 +347,8 @@ class YoutubeVideoService(BaseYoutubeService):
 
         # Initialize services
         self.services.append(YoutubeServiceGoogleAPIClient(is_debug=self.is_debug))
-        self.services.append(YoutubeServicePyTube(is_debug=self.is_debug))
         self.services.append(YoutubeServiceYTDLP(is_debug=self.is_debug))
+        self.services.append(YoutubeServicePyTube(is_debug=self.is_debug))
 
     def search_video(self, query: str, max_results: int = 10, filters: dict = None) -> list:
         """
@@ -318,22 +369,32 @@ class YoutubeVideoService(BaseYoutubeService):
                 continue
         raise RuntimeError("All services failed to search videos.")
 
-
-    def get_video_audio_url(self, video_id: str) -> str:
+    def get_video_audio_url(self, video_id: str, start_time: int = None, end_time: int = None) -> str:
         """
-        Build the audio URL for a YouTube video.
-        Will try the preferred method first, then fall back to the other if it fails.
+        Build the audio URL for a YouTube video with optional time constraints.
+        Will try the preferred method first, then fall back to others if it fails.
 
         Args:
             video_id (str): The ID of the YouTube video.
+            start_time (int, optional): Start time in seconds.
+            end_time (int, optional): End time in seconds.
 
         Returns:
             str: The direct audio stream URL for the video.
 
         Raises:
-            RuntimeError: If both methods fail to get the audio URL.
+            RuntimeError: If all services fail to get the audio URL.
         """
+        # If timestamps are provided, use YT-DLP service first as it has the best timestamp support
+        if start_time is not None or end_time is not None:
+            ytdlp_service = next((s for s in self.services if isinstance(s, YoutubeServiceYTDLP)), None)
+            if ytdlp_service:
+                try:
+                    return ytdlp_service.get_video_audio_url(video_id, start_time, end_time)
+                except Exception as e:
+                    logger.error(f"Error getting audio URL with YT-DLP: {str(e)}")
 
+        # Try other services as fallback (without timestamp support)
         for service in self.services:
             try:
                 return service.get_video_audio_url(video_id)
@@ -341,3 +402,30 @@ class YoutubeVideoService(BaseYoutubeService):
                 logger.error(f"Error getting audio URL with {service.__class__.__name__}: {str(e)}")
                 continue
         raise RuntimeError("All services failed to get audio URL.")
+
+    def get_video_duration(self, video_id: str) -> int:
+        """
+        Get the duration of a video in seconds.
+
+        Args:
+            video_id (str): The ID of the YouTube video.
+
+        Returns:
+            int: Duration of the video in seconds.
+        """
+        # Try YT-DLP service first as it's more reliable
+        ytdlp_service = next((s for s in self.services if isinstance(s, YoutubeServiceYTDLP)), None)
+        if ytdlp_service:
+            try:
+                return ytdlp_service.get_video_duration(video_id)
+            except Exception as e:
+                logger.error(f"Error getting video duration with YT-DLP: {str(e)}")
+
+        # Try other services as fallback
+        for service in self.services:
+            try:
+                return service.get_video_duration(video_id)
+            except Exception as e:
+                logger.error(f"Error getting video duration with {service.__class__.__name__}: {str(e)}")
+                continue
+        raise RuntimeError("All services failed to get video duration.")

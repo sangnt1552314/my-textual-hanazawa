@@ -194,3 +194,9 @@
     color: $accent;
     width: auto;
 }
+
+#youtube_player_timer {
+    color: $text;
+    width: auto;
+    padding-left: 2;
+}

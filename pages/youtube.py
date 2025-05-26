@@ -1,5 +1,6 @@
 import os
 import logging
+import asyncio
 from rich.text import Text
 from templates import BaseTemplate
 from textual.app import ComposeResult
@@ -24,7 +25,8 @@ from textual.widgets import (
 )
 from textual.events import Click
 from utils.youtube import YoutubeVideoService
-from utils.audio_player import *
+from utils.audio_player import YoutubeAudioPlayer, VLCPlayer
+from textual import work
 
 logging.basicConfig(
     filename=f"dev.log",
@@ -62,6 +64,10 @@ class YoutubePage(BaseTemplate):
         self.youtube_audio_player = YoutubeAudioPlayer()
         self.youtube_video_result_view_type = 'datatable' # 'container' or 'datatable'
         self.playing_url = None
+        self.playing_video_id = None
+        self.current_duration = 0
+        self.current_time = 0
+        self.timer_running = False
 
     def compose(self) -> ComposeResult:
         yield Header(
@@ -102,6 +108,7 @@ class YoutubePage(BaseTemplate):
 
         with Container(id="youtube_player_bar"):
             with Horizontal(id="youtube_player_info"):
+                yield Label("0:00 / 0:00", id="youtube_player_timer")
                 yield Label("Now Playing: ", id="youtube_player_status")
                 yield Label("No Video Selected", id="youtube_current_video")
             with Horizontal(id="youtube_player_controls"):
@@ -178,21 +185,35 @@ class YoutubePage(BaseTemplate):
                 play_pause_button.label = "S"
                 self.query_one("#youtube_current_video", Label).update(f"{video_title}")
 
+                # Get video duration
+                self.current_duration = self.youtube_video_service.get_video_duration(video_id)
+                self.current_time = 0
+                self.update_timer_display()
+
                 # Play the audio
+                self.playing_video_id = video_id
                 self.youtube_audio_player.play_stream_url(audio_url)
+                self.start_timer()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "youtube_play_pause_button":
             if self.youtube_audio_player.is_playing:
-                self.youtube_audio_player.stop()
+                self.youtube_audio_player.pause()
                 event.button.label = "P"
+                self.timer_running = False
+            elif self.youtube_audio_player.is_paused:
+                self.youtube_audio_player.resume()
+                event.button.label = "S"
+                self.start_timer()
             else:
                 self.youtube_audio_player.play_stream_url(self.playing_url)
                 event.button.label = "S"
+                self.start_timer()
 
     def clear_search_results(self) -> None:
         """Clear search results"""
         self.playing_url = None
+        self.stop_timer()
 
         search_input = self.query_one("#youtube_search_input", Input)
         search_input.value = ""
@@ -234,3 +255,41 @@ class YoutubePage(BaseTemplate):
             minutes = (length % 3600) // 60
             seconds = length % 60
             return f"{hours}:{minutes}:{seconds}"
+
+    @work(exclusive=True)
+    async def update_timer(self) -> None:
+        """Update the timer display every second"""
+        while self.timer_running and self.current_time < self.current_duration:
+            await asyncio.sleep(1)
+            if isinstance(self.youtube_audio_player.current_player, VLCPlayer):
+                self.current_time = self.youtube_audio_player.get_current_time()
+            else:
+                self.current_time += 1
+            self.update_timer_display()
+
+    def start_timer(self) -> None:
+        """Start the timer"""
+        self.timer_running = True
+        self.update_timer()
+
+    def stop_timer(self) -> None:
+        """Stop the timer"""
+        self.timer_running = False
+        self.current_time = 0
+        self.update_timer_display()
+
+    def update_timer_display(self) -> None:
+        """Update the timer display"""
+        current = self.format_time(self.current_time)
+        total = self.format_time(self.current_duration)
+        self.query_one("#youtube_player_timer", Label).update(f"{current} / {total}")
+
+    def format_time(self, seconds: int) -> str:
+        """Format seconds into MM:SS or HH:MM:SS"""
+        if seconds < 3600:  # Less than an hour
+            return f"{seconds // 60}:{seconds % 60:02d}"
+        else:
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            seconds = seconds % 60
+            return f"{hours}:{minutes:02d}:{seconds:02d}"
